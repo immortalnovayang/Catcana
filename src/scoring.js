@@ -16,10 +16,11 @@ export function groupBonus(group) {
 }
 
 // 一層消除的得分。chain 從 1 開始，倍率 = chain（連鎖每多一層 +1）
-export function scoreLayer(groups, chain) {
+// baseTable 是這局目前的水晶基礎分（行星會強化）
+export function scoreLayer(groups, chain, baseTable = BASE_SCORE) {
   const mult = chain;
   const parts = groups.map((g) => {
-    const base = g.cells.length * BASE_SCORE[g.type];
+    const base = g.cells.length * baseTable[g.type];
     const bonus = groupBonus(g);
     return { group: g, base, bonus, points: (base + bonus) * mult };
   });

@@ -12,7 +12,7 @@
     <main class="app">
       <header class="top">
         <h1>貓咪占卜師</h1>
-        <p class="sub">原型 · 單關測試</p>
+        <p id="level-label" class="sub"></p>
       </header>
 
       <section class="hud" aria-label="狀態">
@@ -21,38 +21,56 @@
           <span class="value"><span id="stat-score">0</span><span class="of"> / <span id="stat-target">0</span></span></span>
           <div class="bar"><div id="score-bar" class="bar-fill"></div></div>
         </div>
-        <div class="stat"><span class="label">剩餘步數</span><span id="stat-steps" class="value">0</span></div>
+        <div id="steps-card" class="stat"><span class="label">剩餘步數</span><span id="stat-steps" class="value">0</span></div>
+        <div class="stat"><span class="label">金幣</span><span id="stat-gold" class="value gold">0</span></div>
       </section>
-      <p id="step-info" class="step-info"></p>
 
-      <div class="board-wrap">
-        <div id="board" class="board" role="application" aria-label="三消盤面"></div>
-        <div id="result" class="result" hidden>
-          <div class="result-card">
-            <h2 id="result-title"></h2>
-            <dl>
-              <div><dt>得分</dt><dd id="result-score"></dd></div>
-              <div><dt>目標</dt><dd id="result-target"></dd></div>
-              <div><dt>剩餘步數</dt><dd id="result-steps"></dd></div>
-              <div><dt>最高連鎖</dt><dd id="result-chain"></dd></div>
-            </dl>
-            <p id="result-note" class="result-note"></p>
-            <div class="result-actions">
-              <button id="btn-next" type="button">新的一盤</button>
-              <button id="btn-retry" type="button" class="ghost">重玩這盤</button>
+      <section id="play" class="play">
+        <p id="step-info" class="step-info"></p>
+
+        <div class="board-wrap">
+          <div id="board" class="board" role="application" aria-label="三消盤面"></div>
+          <div id="result" class="result" hidden>
+            <div class="result-card">
+              <h2 id="result-title"></h2>
+              <dl>
+                <div><dt>得分</dt><dd id="result-score"></dd></div>
+                <div><dt>目標</dt><dd id="result-target"></dd></div>
+                <div><dt>剩餘步數</dt><dd id="result-steps"></dd></div>
+                <div><dt>最高連鎖</dt><dd id="result-chain"></dd></div>
+              </dl>
+              <ul id="result-reward" class="reward"></ul>
+              <p id="result-note" class="result-note"></p>
+              <div class="result-actions">
+                <button id="btn-result-main" type="button"></button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <section class="actions">
-        <button id="btn-shuffle" type="button">洗牌（2）</button>
-        <button id="btn-new" type="button" class="ghost">新盤面</button>
+        <section class="actions">
+          <button id="btn-shuffle" type="button">洗牌（2）</button>
+          <button id="btn-restart" type="button" class="ghost">重新開始</button>
+        </section>
       </section>
+
+      <section id="shop" class="shop" hidden aria-label="占卜室">
+        <h2>🔮 占卜室</h2>
+        <p class="shop-sub">抽到三張牌，選一張帶走。下一位客人是 <strong id="shop-next"></strong>（目標 <span id="shop-next-target"></span> 分）</p>
+        <div id="offers" class="offers"></div>
+        <div class="shop-actions">
+          <button id="btn-reroll" type="button" class="ghost"></button>
+          <button id="btn-leave" type="button">迎接下一位客人</button>
+        </div>
+        <p class="shop-hint">利息：每存 5 金，過關時多拿 1 金（最多 5 金）。</p>
+      </section>
+
+      <p id="perks" class="perks"></p>
 
       <footer class="foot">
         <p>滑動水晶，或先點一顆再點旁邊那顆來交換。三顆同色連線就會消除。</p>
         <p>得分 =（水晶分數 + 形狀加值）× 連鎖倍率。4 連、5 連、L / T 形有加值，連鎖越多層倍率越高。</p>
+        <p>一局三位客人，過關拿金幣，在占卜室換強化。剩餘步數會換成金幣。</p>
         <p class="meta"><span id="version"></span> · 種子 <span id="seed"></span></p>
       </footer>
     </main>
