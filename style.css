@@ -15,6 +15,8 @@
   --text: #f4ecff;
   --muted: #b5a6d6;
   --radius: 14px;
+  --font-num: 'Fredoka', system-ui, -apple-system, 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --ink-outline: 0 2px 0 #2a0f3a, 2px 0 0 #2a0f3a, -2px 0 0 #2a0f3a, 0 -2px 0 #2a0f3a, 1.5px 1.5px 0 #2a0f3a, -1.5px 1.5px 0 #2a0f3a, 1.5px -1.5px 0 #2a0f3a, -1.5px -1.5px 0 #2a0f3a, 0 4px 8px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
 
@@ -71,10 +73,10 @@ body {
 /* ---------- 共用元件 ---------- */
 
 .panel {
-  background: linear-gradient(180deg, var(--panel-top), var(--panel-bottom));
-  border: 1.5px solid rgba(255, 211, 110, 0.45);
+  background: linear-gradient(180deg, #4f1f62, #2a0f3c);
+  border: 2px solid var(--gold-mid);
   border-radius: var(--radius);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.4), inset 0 0 0 3px rgba(255, 211, 110, 0.28), inset 0 10px 14px -10px rgba(255, 255, 255, 0.25), 0 4px 14px rgba(0, 0, 0, 0.45);
 }
 
 .title-text {
@@ -200,11 +202,13 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  filter: drop-shadow(0 2px 0 #2a0f3a) drop-shadow(0 0 6px rgba(0, 0, 0, 0.8));
 }
 
 .level-sub {
   font-size: 0.72rem;
-  color: var(--muted);
+  color: #e6dcff;
+  text-shadow: 0 1px 2px #000;
   letter-spacing: 0.1em;
   min-height: 1em;
 }
@@ -232,21 +236,21 @@ body {
 }
 
 #stat-score {
-  font-size: 1.55rem;
-  font-weight: 900;
+  font-family: var(--font-num);
+  font-size: 1.7rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
-  background: linear-gradient(180deg, #fff6d8, var(--gold) 55%, #e09a2a);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #fff3c4;
+  text-shadow: var(--ink-outline);
   display: inline-block;
 }
 
 .of {
+  font-family: var(--font-num);
   color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .bar {
@@ -272,22 +276,25 @@ body {
 }
 
 .steps-badge {
-  width: 60px;
-  height: 60px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 35% 28%, #6a46c0, #241452);
-  border: 3px solid var(--gold-mid);
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.45);
+  background: radial-gradient(circle at 35% 28%, #8a3a9a, #3a1050 70%);
+  border: 4px solid var(--gold-mid);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.4), inset 0 0 0 4px rgba(255, 211, 110, 0.3), 0 0 0 2px #6b420c, 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 #stat-steps {
-  font-size: 1.5rem;
-  font-weight: 900;
+  font-family: var(--font-num);
+  font-size: 1.75rem;
+  font-weight: 700;
   line-height: 1;
+  color: #fff;
+  text-shadow: var(--ink-outline);
   font-variant-numeric: tabular-nums;
 }
 
@@ -316,9 +323,11 @@ body {
   align-items: center;
   gap: 5px;
   padding: 10px 12px;
-  font-weight: 900;
-  font-size: 1.15rem;
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 1.3rem;
   color: var(--gold);
+  text-shadow: var(--ink-outline);
   font-variant-numeric: tabular-nums;
 }
 
@@ -462,10 +471,10 @@ body.in-menu .hud {
   width: min(100%, 320px);
   padding: 28px 16px 16px;
   text-align: center;
-  background: linear-gradient(180deg, #3a2774, #1a1040);
-  border: 2px solid var(--gold-mid);
+  background: linear-gradient(180deg, #55206a, #250c38);
+  border: 3px solid var(--gold-mid);
   border-radius: 18px;
-  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.3), 0 14px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.35), inset 0 0 0 4px rgba(255, 211, 110, 0.3), 0 14px 40px rgba(0, 0, 0, 0.6);
   animation: pop-in 320ms cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
@@ -518,8 +527,11 @@ body.in-menu .hud {
 
 .result-stats dd {
   margin: 0;
-  font-size: 1.2rem;
-  font-weight: 900;
+  font-family: var(--font-num);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff3c4;
+  text-shadow: var(--ink-outline);
   font-variant-numeric: tabular-nums;
 }
 
@@ -629,6 +641,7 @@ body.in-menu .hud {
 }
 
 .tcard {
+  font-family: inherit;
   position: relative;
   width: 52px;
   height: 74px;
@@ -851,6 +864,7 @@ body.in-menu .hud {
 }
 
 .skill .count {
+  font-family: var(--font-num);
   position: absolute;
   top: -4px;
   right: -4px;

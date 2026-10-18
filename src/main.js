@@ -25,7 +25,7 @@ import {
 } from './run.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.7 · 手機版面';
+const VERSION = 'v0.8 · 視覺升級';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 

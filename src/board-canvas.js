@@ -15,7 +15,7 @@ const PALETTE = {
 };
 const TYPES = Object.keys(PALETTE);
 const INK = '#2b1b2e';
-const GEM_SCALE = 0.86;
+const GEM_SCALE = 0.92; // 水晶塞滿九成多的格子，看起來比較飽滿
 const GRAVITY = 70; // 格／秒²
 const VMAX = 24;
 
@@ -170,9 +170,9 @@ function buildBody(type, px, sleepy = false) {
   g.translate(px / 2, px / 2);
   g.scale(px * GEM_SCALE, px * GEM_SCALE);
   g.save();
-  g.translate(0.02, 0.05);
+  g.translate(0.015, 0.035);
   shapePath(g, type);
-  g.fillStyle = 'rgba(0,0,0,0.38)';
+  g.fillStyle = 'rgba(20,8,40,0.45)';
   g.fill();
   g.restore();
   shapePath(g, type);
@@ -200,9 +200,11 @@ function buildBody(type, px, sleepy = false) {
   g.arc(-0.21, -0.2, 0.026, 0, TAU);
   g.fill();
   g.restore();
+  // 卡通粗輪廓
   shapePath(g, type);
-  g.lineWidth = 0.04;
-  g.strokeStyle = rgba(P.dark, 0.95);
+  g.lineWidth = 0.065;
+  g.lineJoin = 'round';
+  g.strokeStyle = P.dark;
   g.stroke();
   g.save();
   shapePath(g, type);
@@ -241,98 +243,191 @@ function makeGlow(color, px = 96) {
   return c;
 }
 
-// 表情：眼睛跟著 look 偏移；眨眼或睡著時閉眼
+// 表情：大眼睛（眼白 + 會跟著看的瞳孔 + 兩個反光點），每種水晶一個誇張的個性
+// 眼睛位置依外形調整，星星最窄所以眼睛最小
+const FACE_LAYOUT = {
+  fire: { ex: 0.12, ey: 0.05, er: 0.085 },
+  water: { ex: 0.12, ey: 0.12, er: 0.085 },
+  wind: { ex: 0.12, ey: 0.02, er: 0.08 },
+  earth: { ex: 0.14, ey: -0.03, er: 0.095 },
+  star: { ex: 0.075, ey: 0.1, er: 0.062 },
+  egg: { ex: 0.11, ey: 0.1, er: 0.06 },
+};
+
 function drawFace(g, type, s, now, asleep) {
+  const P = PALETTE[type];
+  const { ex, ey, er } = FACE_LAYOUT[type];
   const blinking = asleep || type === 'egg' || (now > s.blinkAt && now < s.blinkAt + 0.14);
-  const lx = s.look.x * 0.022;
-  const ly = s.look.y * 0.018;
+  const lx = s.look.x * er * 0.35;
+  const ly = s.look.y * er * 0.3;
   g.lineCap = 'round';
   g.lineJoin = 'round';
   g.strokeStyle = INK;
   g.fillStyle = INK;
-  g.lineWidth = 0.036;
-  const closed = (x, y, w) => {
+
+  const closedEye = (x, y = ey, up = false) => {
+    g.lineWidth = 0.035;
     g.beginPath();
-    g.moveTo(x - w, y);
-    g.quadraticCurveTo(x, y + w * 0.8, x + w, y);
+    g.moveTo(x - er, y);
+    g.quadraticCurveTo(x, y + (up ? -er : er) * 0.9, x + er, y);
     g.stroke();
   };
-  const eye = (x, y, r) => {
-    if (blinking) return closed(x, y, r * 1.2);
+  // lid：上眼皮蓋住的比例（愛睏）；down：瞳孔往下看（害羞）
+  const openEye = (x, { lid = 0, down = 0 } = {}) => {
+    if (blinking) return closedEye(x);
+    const ry = er * 1.18;
+    g.fillStyle = '#fff';
     g.beginPath();
-    g.ellipse(x + lx, y + ly, r, r * 1.15, 0, 0, TAU);
+    g.ellipse(x, ey, er, ry, 0, 0, TAU);
+    g.fill();
+    g.save();
+    g.clip();
+    const px = x + lx;
+    const py = ey + ly + down * er;
+    g.fillStyle = INK;
+    g.beginPath();
+    g.ellipse(px, py + er * 0.08, er * 0.66, er * 0.78, 0, 0, TAU);
     g.fill();
     g.fillStyle = '#fff';
     g.beginPath();
-    g.arc(x + lx - r * 0.35, y + ly - r * 0.4, r * 0.38, 0, TAU);
+    g.arc(px - er * 0.24, py - er * 0.26, er * 0.27, 0, TAU);
     g.fill();
-    g.fillStyle = INK;
+    g.beginPath();
+    g.arc(px + er * 0.22, py + er * 0.3, er * 0.12, 0, TAU);
+    g.fill();
+    if (lid > 0) {
+      g.fillStyle = P.base;
+      g.fillRect(x - er * 1.2, ey - ry * 1.1, er * 2.4, ry * 2 * lid + ry * 0.1);
+      g.strokeStyle = INK;
+      g.lineWidth = 0.03;
+      g.beginPath();
+      g.moveTo(x - er * 1.1, ey - ry + ry * 2 * lid);
+      g.lineTo(x + er * 1.1, ey - ry + ry * 2 * lid);
+      g.stroke();
+    }
+    g.restore();
+    g.strokeStyle = INK;
+    g.lineWidth = 0.026;
+    g.beginPath();
+    g.ellipse(x, ey, er, ry, 0, 0, TAU);
+    g.stroke();
   };
+  const blush = (x, y, w) => {
+    g.fillStyle = 'rgba(255,120,170,0.5)';
+    g.beginPath();
+    g.ellipse(x, y, w, w * 0.55, 0, 0, TAU);
+    g.fill();
+  };
+
   if (type === 'egg') {
-    closed(-0.1, 0.1, 0.05);
-    closed(0.1, 0.1, 0.05);
+    closedEye(-ex);
+    closedEye(ex);
     g.lineWidth = 0.028;
     g.beginPath();
-    g.moveTo(-0.03, 0.22);
-    g.quadraticCurveTo(0, 0.25, 0.03, 0.22);
+    g.moveTo(-0.03, 0.24);
+    g.quadraticCurveTo(0, 0.27, 0.03, 0.24);
     g.stroke();
-  } else if (type === 'fire') {
+    return;
+  }
+
+  if (type === 'fire') {
+    // 氣鼓鼓：粗眉壓低、鼓起的臉頰、咬牙
+    openEye(-ex);
+    openEye(ex);
+    g.lineWidth = 0.05;
     g.beginPath();
-    g.moveTo(-0.19, -0.02);
-    g.lineTo(-0.07, 0.03);
-    g.moveTo(0.19, -0.02);
-    g.lineTo(0.07, 0.03);
+    g.moveTo(-ex - er * 1.2, ey - er * 1.75);
+    g.lineTo(-ex + er * 0.9, ey - er * 1.05);
+    g.moveTo(ex + er * 1.2, ey - er * 1.75);
+    g.lineTo(ex - er * 0.9, ey - er * 1.05);
     g.stroke();
-    eye(-0.11, 0.09, 0.042);
-    eye(0.11, 0.09, 0.042);
+    blush(-0.2, 0.2, 0.05);
+    blush(0.2, 0.2, 0.05);
+    g.fillStyle = '#fff';
+    g.lineWidth = 0.028;
     g.beginPath();
-    g.moveTo(-0.06, 0.22);
-    g.quadraticCurveTo(0, 0.17, 0.06, 0.22);
+    g.roundRect(-0.07, 0.2, 0.14, 0.06, 0.02);
+    g.fill();
+    g.stroke();
+    g.beginPath();
+    g.moveTo(0, 0.2);
+    g.lineTo(0, 0.26);
     g.stroke();
   } else if (type === 'water') {
-    closed(-0.11, 0.14, 0.06);
-    closed(0.11, 0.14, 0.06);
+    // 愛睏：半睜眼、嘴巴打哈欠開合
+    if (asleep) {
+      closedEye(-ex);
+      closedEye(ex);
+    } else {
+      openEye(-ex, { lid: 0.48 });
+      openEye(ex, { lid: 0.48 });
+    }
+    const yawn = 0.03 + Math.max(0, Math.sin(now * 0.9 + s.phase)) * 0.03;
+    g.fillStyle = '#6b1f3a';
     g.beginPath();
-    g.ellipse(0, 0.27, 0.03, 0.025 + Math.sin(now * 2 + s.phase) * 0.008, 0, 0, TAU);
+    g.ellipse(0, 0.3, 0.04, yawn, 0, 0, TAU);
     g.fill();
-  } else if (type === 'wind') {
-    eye(-0.1, 0.04, 0.042);
-    g.beginPath();
-    g.moveTo(0.05, 0.05);
-    g.quadraticCurveTo(0.11, 0.0, 0.16, 0.05);
+    g.lineWidth = 0.022;
     g.stroke();
+  } else if (type === 'wind') {
+    // 調皮：一眼眨、歪嘴笑、吐舌
+    openEye(-ex);
+    closedEye(ex, ey, true);
+    g.lineWidth = 0.034;
     g.beginPath();
-    g.moveTo(-0.09, 0.15);
-    g.quadraticCurveTo(0, 0.24, 0.09, 0.15);
+    g.moveTo(-0.11, 0.15);
+    g.quadraticCurveTo(0.02, 0.27, 0.13, 0.12);
     g.stroke();
     if (!asleep) {
-      g.fillStyle = '#ff8fa3';
+      g.fillStyle = '#ff7f98';
       g.beginPath();
-      g.ellipse(0.02, 0.21, 0.035, 0.045, 0.3, 0, TAU);
+      g.ellipse(0.04, 0.22, 0.045, 0.055, 0.3, 0, TAU);
       g.fill();
+      g.lineWidth = 0.022;
       g.stroke();
     }
   } else if (type === 'earth') {
-    eye(-0.13, -0.03, 0.045);
-    eye(0.13, -0.03, 0.045);
-    g.beginPath();
-    g.moveTo(-0.15, 0.1);
-    g.quadraticCurveTo(0, 0.28, 0.15, 0.1);
-    g.stroke();
-  } else if (type === 'star') {
-    g.fillStyle = 'rgba(255,158,196,0.85)';
-    for (const x of [-0.13, 0.13]) {
+    // 憨厚：大眼、張嘴大笑露出舌頭
+    openEye(-ex);
+    openEye(ex);
+    blush(-0.26, 0.1, 0.055);
+    blush(0.26, 0.1, 0.055);
+    if (asleep) {
+      g.lineWidth = 0.032;
       g.beginPath();
-      g.ellipse(x, 0.2, 0.05, 0.03, 0, 0, TAU);
+      g.moveTo(-0.08, 0.17);
+      g.quadraticCurveTo(0, 0.22, 0.08, 0.17);
+      g.stroke();
+    } else {
+      g.fillStyle = '#6b1f3a';
+      g.beginPath();
+      g.moveTo(-0.15, 0.1);
+      g.quadraticCurveTo(0, 0.13, 0.15, 0.1);
+      g.quadraticCurveTo(0.12, 0.3, 0, 0.3);
+      g.quadraticCurveTo(-0.12, 0.3, -0.15, 0.1);
+      g.closePath();
       g.fill();
+      g.save();
+      g.clip();
+      g.fillStyle = '#ff7f98';
+      g.beginPath();
+      g.ellipse(0, 0.3, 0.08, 0.06, 0, 0, TAU);
+      g.fill();
+      g.restore();
+      g.lineWidth = 0.03;
+      g.stroke();
     }
-    g.fillStyle = INK;
-    eye(-0.08, 0.12, 0.032);
-    eye(0.08, 0.12, 0.032);
-    g.lineWidth = 0.028;
+  } else if (type === 'star') {
+    // 害羞：腮紅、眼睛往下看、小小的嘴
+    blush(-0.12, 0.2, 0.045);
+    blush(0.12, 0.2, 0.045);
+    openEye(-ex, { down: 0.3 });
+    openEye(ex, { down: 0.3 });
+    g.lineWidth = 0.026;
     g.beginPath();
-    g.moveTo(-0.03, 0.21);
-    g.quadraticCurveTo(0, 0.24, 0.03, 0.21);
+    g.moveTo(-0.03, 0.22);
+    g.quadraticCurveTo(-0.015, 0.245, 0, 0.225);
+    g.quadraticCurveTo(0.015, 0.245, 0.03, 0.22);
     g.stroke();
   }
 }
@@ -411,7 +506,120 @@ export class BoardView {
     this.canvas.width = Math.round(this.W * this.dpr);
     this.canvas.height = Math.round(this.H * this.dpr);
     this.cacheCell = 0; // 像素密度可能變了，快取要重做
+    this.tent = this.buildTent();
   }
+
+  // 占卜帳篷：兩側絨布帷幔、上方荷葉邊垂簾與流蘇、底部燭光。只在尺寸改變時重畫
+  buildTent() {
+    const { W, H, dpr } = this;
+    const c = document.createElement('canvas');
+    c.width = Math.round(W * dpr);
+    c.height = Math.round(H * dpr);
+    const g = c.getContext('2d');
+    g.scale(dpr, dpr);
+
+    const glow = g.createRadialGradient(W / 2, H * 1.05, 0, W / 2, H * 1.05, Math.max(W, H) * 0.75);
+    glow.addColorStop(0, 'rgba(255,170,80,0.3)');
+    glow.addColorStop(1, 'rgba(255,170,80,0)');
+    g.fillStyle = glow;
+    g.fillRect(0, 0, W, H);
+
+    const cw = Math.min(140, Math.max(26, W * 0.09));
+    const edge = (p) => {
+      p.moveTo(cw * 1.7, 0);
+      p.bezierCurveTo(cw * 1.2, H * 0.25, cw * 0.55, H * 0.45, cw * 0.5, H * 0.55);
+      p.bezierCurveTo(cw * 0.6, H * 0.7, cw * 1.0, H * 0.9, cw * 1.1, H);
+    };
+    for (const side of [-1, 1]) {
+      g.save();
+      if (side === 1) {
+        g.translate(W, 0);
+        g.scale(-1, 1);
+      }
+      g.beginPath();
+      g.moveTo(0, 0);
+      edge(g);
+      g.lineTo(0, H);
+      g.closePath();
+      // 布料皺褶：深淺交替的直條
+      const folds = g.createLinearGradient(0, 0, cw * 1.7, 0);
+      for (let i = 0; i <= 8; i++) folds.addColorStop(i / 8, i % 2 ? '#5a1230' : '#8e2449');
+      g.fillStyle = folds;
+      g.fill();
+      const shade = g.createLinearGradient(0, 0, cw * 1.7, 0);
+      shade.addColorStop(0, 'rgba(0,0,0,0.4)');
+      shade.addColorStop(0.65, 'rgba(0,0,0,0)');
+      shade.addColorStop(1, 'rgba(0,0,0,0.45)');
+      g.fillStyle = shade;
+      g.fill();
+      g.beginPath();
+      edge(g);
+      g.strokeStyle = '#d9a441';
+      g.lineWidth = 2.5;
+      g.stroke();
+      // 綁帶與流蘇
+      const ty = H * 0.55;
+      g.fillStyle = '#e8b85a';
+      g.strokeStyle = '#6b420c';
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.ellipse(cw * 0.42, ty, cw * 0.22, Math.max(3, cw * 0.07), -0.15, 0, TAU);
+      g.fill();
+      g.stroke();
+      g.beginPath();
+      g.moveTo(cw * 0.5, ty + 2);
+      g.lineTo(cw * 0.44, ty + cw * 0.45);
+      g.lineTo(cw * 0.6, ty + cw * 0.45);
+      g.closePath();
+      g.fill();
+      g.stroke();
+      g.restore();
+    }
+
+    // 上方垂簾：荷葉邊
+    const vh = Math.min(46, Math.max(24, H * 0.045));
+    const n = Math.max(6, Math.round(W / 70));
+    const sw = W / n;
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(W, 0);
+    g.lineTo(W, vh * 0.6);
+    for (let i = n - 1; i >= 0; i--) g.quadraticCurveTo((i + 0.5) * sw, vh * 1.45, i * sw, vh * 0.6);
+    g.closePath();
+    const vg = g.createLinearGradient(0, 0, 0, vh);
+    vg.addColorStop(0, '#3e0b22');
+    vg.addColorStop(1, '#8e2449');
+    g.fillStyle = vg;
+    g.fill();
+    g.beginPath();
+    g.moveTo(W, vh * 0.6);
+    for (let i = n - 1; i >= 0; i--) g.quadraticCurveTo((i + 0.5) * sw, vh * 1.45, i * sw, vh * 0.6);
+    g.strokeStyle = '#d9a441';
+    g.lineWidth = 2.5;
+    g.stroke();
+    // 每個荷葉邊的交接處掛一顆流蘇
+    g.fillStyle = '#ffd36e';
+    g.strokeStyle = '#6b420c';
+    g.lineWidth = 1;
+    for (let i = 1; i < n; i++) {
+      const x = i * sw;
+      const y = vh * 0.6;
+      g.beginPath();
+      g.arc(x, y + 3, 3.2, 0, TAU);
+      g.fill();
+      g.stroke();
+      g.beginPath();
+      g.moveTo(x - 2.5, y + 5);
+      g.lineTo(x + 2.5, y + 5);
+      g.lineTo(x + 1.5, y + 15);
+      g.lineTo(x - 1.5, y + 15);
+      g.closePath();
+      g.fill();
+      g.stroke();
+    }
+    return c;
+  }
+
 
   // 每格量一次 #board 的位置；格子大小變了才重做快取
   measure() {
@@ -463,19 +671,41 @@ export class BoardView {
     g.beginPath();
     g.roundRect(pad, pad, size, size, r);
     g.clip();
-    const glass = g.createLinearGradient(0, pad, 0, pad + size);
-    glass.addColorStop(0, '#2c1f55');
-    glass.addColorStop(1, '#170f33');
-    g.fillStyle = glass;
+    // 底色：深色，格子之間的縫隙會透出來
+    g.fillStyle = '#1b1238';
     g.fillRect(pad, pad, size, size);
+    // 每格一個淺色霧面玻璃凹槽，讓深色背景前的水晶跳出來
     const n = this.board.size;
-    g.fillStyle = 'rgba(255,255,255,0.045)';
-    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!((x + y) % 2)) g.fillRect(pad + x * cell, pad + y * cell, cell, cell);
-    const sh = g.createLinearGradient(0, pad, 0, pad + cell);
-    sh.addColorStop(0, 'rgba(0,0,0,0.45)');
+    const gap = cell * 0.05;
+    const rr = cell * 0.2;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const cx = pad + x * cell + gap;
+        const cy = pad + y * cell + gap;
+        const w = cell - gap * 2;
+        const alt = (x + y) % 2 ? 0.04 : 0;
+        const fill = g.createLinearGradient(0, cy, 0, cy + w);
+        fill.addColorStop(0, `rgba(226,214,255,${0.34 + alt})`);
+        fill.addColorStop(1, `rgba(176,162,240,${0.2 + alt})`);
+        g.beginPath();
+        g.roundRect(cx, cy, w, w, rr);
+        g.fillStyle = fill;
+        g.fill();
+        // 上緣的高光與下緣的陰影，做出凹槽的立體感
+        g.save();
+        g.clip();
+        g.fillStyle = 'rgba(255,255,255,0.22)';
+        g.fillRect(cx, cy, w, w * 0.08);
+        g.fillStyle = 'rgba(40,20,80,0.25)';
+        g.fillRect(cx, cy + w * 0.9, w, w * 0.1);
+        g.restore();
+      }
+    }
+    const sh = g.createLinearGradient(0, pad, 0, pad + cell * 0.6);
+    sh.addColorStop(0, 'rgba(0,0,0,0.35)');
     sh.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = sh;
-    g.fillRect(pad, pad, size, cell);
+    g.fillRect(pad, pad, size, cell * 0.6);
     g.restore();
     g.fillStyle = '#fff1bf';
     for (const [x, y] of [
@@ -758,7 +988,8 @@ export class BoardView {
   // ---------- 主迴圈 ----------
 
   frame(ts) {
-    const rdt = Math.min(0.05, (ts - this.last) / 1000);
+    // 時間只能往前走：第一格的時間戳可能早於建構時的 performance.now()，不夾住會讓時間倒退
+    const rdt = clamp((ts - this.last) / 1000, 0, 0.05);
     this.last = ts;
     this.now += rdt;
     let dt = rdt;
@@ -960,6 +1191,7 @@ export class BoardView {
       ctx.stroke();
     }
     ctx.globalCompositeOperation = 'source-over';
+    if (this.tent) ctx.drawImage(this.tent, 0, 0, W, H);
   }
 
   drawRays() {
@@ -1089,7 +1321,7 @@ export class BoardView {
       ctx.save();
       ctx.globalAlpha = Math.sin(k * Math.PI) * 0.9;
       ctx.fillStyle = '#d9e4ff';
-      ctx.font = `800 ${Math.round(cell * (0.22 + k * 0.12))}px system-ui, sans-serif`;
+      ctx.font = `700 ${Math.round(cell * (0.24 + k * 0.12))}px Fredoka, system-ui, sans-serif`;
       ctx.fillText('z', c.x + cell * (0.18 + k * 0.12), c.y - cell * (0.2 + k * 0.3));
       ctx.restore();
     }
@@ -1202,7 +1434,7 @@ export class BoardView {
     const size = t.size * (t.style === 'note' ? 1 : pop);
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.font = `900 ${size}px system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif`;
+    ctx.font = `700 ${size}px Fredoka, system-ui, -apple-system, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
