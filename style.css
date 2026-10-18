@@ -1288,6 +1288,38 @@ body.in-menu .hud {
   right: 10px;
   width: 36px;
   height: 36px;
+  /* 標題有陰影濾鏡會自成一層，蓋在按鈕上；把按鈕提到最上面才點得到 */
+  z-index: 3;
+}
+
+/* 說明卡：外框固定圓角不捲動，內層捲動，捲軸就不會超出圓角 */
+.help-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.modal-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 22px 18px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 211, 110, 0.55) transparent;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 16px 0;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 211, 110, 0.55);
+  border-radius: 3px;
 }
 
 .rules {
