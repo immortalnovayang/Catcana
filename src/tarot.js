@@ -1,4 +1,5 @@
 // 塔羅遺物。每張牌有正位與逆位，逆位更強但有代價
+// price：正位價格（逆位 +1）；weight：在商店出現的相對機率，預設 1
 // apply(fx, p)：把效果寫進 fx。p 是效力（魔術師逆位會讓其他牌只剩 80%），只縮放好處，不縮放代價
 // 錢幣七（種子）、聖杯侍者（蛋）、塔（逆位要沉睡水晶）依賴 M5 的特殊方塊，到時候再加入
 const scale = (n, p) => Math.round(n * p);
@@ -128,7 +129,9 @@ export const TAROT = [
     id: 'magician',
     name: '魔術師',
     icon: '🎩',
-    price: 7,
+    // 變色一次就可能清掉一整關，所以做成稀有又昂貴的大獎
+    price: 10,
+    weight: 0.35,
     tags: ['規則改寫'],
     active: true,
     up: {

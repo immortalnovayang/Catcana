@@ -66,12 +66,20 @@ function tarotOffer(card, reversed) {
   };
 }
 
-// 從牌池抽 n 張不重複的商品
+// 從牌池抽 n 張不重複的商品。weight 越低越稀有（預設 1）
 export function drawOffers(rng, run, n = 3) {
   const held = new Set(run.tarots.map((t) => t.id));
-  const pool = [...CATALOG.map((item) => () => item), ...TAROT.filter((c) => !held.has(c.id)).map((c) => () => tarotOffer(c, rng() < 0.5))];
+  const pool = [
+    ...CATALOG.map((item) => ({ weight: 1, make: () => item })),
+    ...TAROT.filter((c) => !held.has(c.id)).map((c) => ({ weight: c.weight ?? 1, make: () => tarotOffer(c, rng() < 0.5) })),
+  ];
   const offers = [];
-  while (offers.length < n && pool.length) offers.push(pool.splice(rng.int(pool.length), 1)[0]());
+  while (offers.length < n && pool.length) {
+    let r = rng() * pool.reduce((s, e) => s + e.weight, 0);
+    let i = 0;
+    while (i < pool.length - 1 && (r -= pool[i].weight) >= 0) i++;
+    offers.push(pool.splice(i, 1)[0].make());
+  }
   return offers;
 }
 
