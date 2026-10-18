@@ -13,6 +13,7 @@ import { SPECIAL_NAMES, applyLayer, heartSwapPlan, planLayer } from './cascade.j
 import { KIND_INFO, kindOf, renderCodex, recipeHTML, tileImage } from './codex.js';
 import { getAudioSettings, onAudioSettings, setAudioSettings, sfx } from './audio.js';
 import { music } from './music.js';
+import { CUSTOMERS, Portrait, lineFor } from './customers.js';
 import {
   LEVELS,
   createRun,
@@ -52,6 +53,9 @@ const state = {
   requeueLeft: 0,
   towerLeft: 0,
   pick: null, // 魔術師選色中：{ from: null | type }
+  totalSteps: 0,
+  lastChain: 0,
+  mood: 'idle', // 客人現在的心情
 };
 
 const view = new BoardView($('stage'), $('board'), new Board(createRng(0)));
@@ -307,7 +311,10 @@ function startLevel() {
   state.magicLeft = fx.magicianUses;
   state.towerLeft = fx.towerUses;
   state.requeueLeft = fx.queueRerolls;
+  state.totalSteps = state.stepsLeft;
+  state.lastChain = 0;
   showScreen('play');
+  meetCustomer();
   placeLevelSpecials();
   view.reset(state.board);
   $('result').hidden = true;
@@ -378,9 +385,16 @@ async function afterStep() {
     sfx.bloom();
   }
   if (currentLevel(run).boss === 'owl' && state.stepsTaken % OWL_EVERY === 0 && state.stepsLeft > 0) {
+    const before = state.mood;
+    setCustomerMood('skill');
+    sfx.sleep();
+    await wait(800);
     board.placeSpecial('sleep', OWL_SLEEPS);
     view.popup('貓頭鷹讓水晶睡著了', 'note');
-    sfx.sleep();
+    view.refreshTiles();
+    setTimeout(() => {
+      if (state.mood === 'skill') setCustomerMood(before === 'skill' ? 'idle' : before, { say: false });
+    }, 1400);
   }
   if (view.refreshTiles()) await wait(300);
   noteNewKinds();
@@ -475,6 +489,7 @@ async function resolve(groups, { swapCells = [], first = null } = {}) {
     groups = board.findMatches();
   }
   state.bestChain = Math.max(state.bestChain, chain);
+  state.lastChain = chain;
   run.bestChain = Math.max(run.bestChain, chain);
   run.bestStep = Math.max(run.bestStep, stepTotal);
   setStepInfo(chain > 1 && !noChain ? `這一步 +${stepTotal}（${chain} 層連鎖）` : `這一步 +${stepTotal}`);
@@ -492,6 +507,7 @@ async function afterResolve() {
     view.popup('沒有步可走，自動洗牌', 'note');
     await shuffleBoard();
   }
+  reactCustomer();
   state.busy = false;
   if (canFarSwap()) showLevelHint();
   updateHud();
@@ -597,6 +613,8 @@ function endLevel(won) {
     mainBtn.textContent = '重新開始一局';
     mainBtn.onclick = () => newRun(randomSeed());
   }
+  if (won) setCustomerMood('satisfied');
+  else setCustomerMood(level.boss ? 'annoyed' : 'worried', { line: lineFor(level.customer, 'lose') });
   const runOver = !won || last;
   $('result').classList.toggle('run-over', runOver);
   renderRunSummary(runOver, won);
@@ -695,6 +713,8 @@ function openShop() {
   const next = currentLevel(run);
   $('shop-next').textContent = next.name + (next.kind === 'boss' ? '（Boss）' : '');
   $('shop-next-target').textContent = next.target;
+  shopPortrait.set(next.customer);
+  $('shop-customer').classList.toggle('boss', next.kind === 'boss');
   $('shop-rule').innerHTML = next.rule ? `${icon('owl')}<span>Boss 規則：${next.rule}</span>` : '';
   showScreen('shop');
   renderShop();
@@ -763,6 +783,82 @@ function openHelp() {
 function closeHelp() {
   $('help').hidden = true;
 }
+
+// ---------- 客人：HUD 左邊的頭像，看分數節奏、步數、連鎖換心情並說話 ----------
+
+const portrait = new Portrait($('customer-canvas'), 60);
+const shopPortrait = new Portrait($('shop-customer'), 64);
+let bubbleTimer = 0;
+let moodTimer = 0;
+
+function customerId() {
+  return currentLevel(run).customer;
+}
+
+function say(text) {
+  const bubble = $('customer-bubble');
+  $('customer-name').textContent = CUSTOMERS[customerId()].name;
+  $('customer-line').textContent = text;
+  bubble.classList.toggle('boss', currentLevel(run).kind === 'boss');
+  bubble.hidden = false;
+  bubble.style.animation = 'none';
+  void bubble.offsetWidth;
+  bubble.style.animation = '';
+  const chip = $('customer-chip');
+  chip.classList.remove('speaking');
+  void chip.offsetWidth;
+  chip.classList.add('speaking');
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(() => ($('customer-bubble').hidden = true), 3200);
+}
+
+// say：要不要說話；line：指定台詞（預設從這個心情的台詞裡隨機挑）
+function setCustomerMood(mood, { say: speak = true, line = null } = {}) {
+  clearTimeout(moodTimer);
+  state.mood = mood;
+  portrait.mood = mood;
+  if (speak) say(line ?? lineFor(customerId(), mood));
+}
+
+function meetCustomer() {
+  const level = currentLevel(run);
+  portrait.set(level.customer, 'idle');
+  $('customer-chip').classList.toggle('boss', level.kind === 'boss');
+  $('customer-chip').setAttribute('aria-label', CUSTOMERS[level.customer].name);
+  state.mood = 'idle';
+  clearTimeout(bubbleTimer);
+  $('customer-bubble').hidden = true;
+  setTimeout(() => {
+    if (screen() === 'play' && !state.over) setCustomerMood('idle');
+  }, 600);
+}
+
+// 依目前進度判斷心情：分數跟得上步數就開心（Boss 則是不耐煩），落後或快沒步就著急
+function paceMood() {
+  const level = currentLevel(run);
+  const pace = state.score / level.target;
+  const used = state.stepsTaken / Math.max(1, state.totalSteps);
+  const boss = level.kind === 'boss';
+  if (pace >= Math.min(0.9, used + 0.1)) return boss ? 'annoyed' : 'happy';
+  if ((state.stepsLeft <= 3 && pace < 0.85) || pace < used - 0.25) return boss ? 'idle' : 'worried';
+  return 'idle';
+}
+
+function reactCustomer() {
+  if (state.over) return;
+  if (state.lastChain >= 3) {
+    // 大連鎖：先驚訝，過一下再回到看進度的心情
+    setCustomerMood('surprised');
+    moodTimer = setTimeout(() => {
+      if (!state.over && state.mood === 'surprised') setCustomerMood(paceMood(), { say: false });
+    }, 2200);
+    return;
+  }
+  const mood = paceMood();
+  if (mood !== state.mood) setCustomerMood(mood);
+}
+
+$('customer-chip').addEventListener('click', () => say(lineFor(customerId(), state.mood === 'skill' ? 'idle' : state.mood)));
 
 // ---------- 新方塊介紹：某種方塊第一次出現在盤面上時跳出說明卡 ----------
 

@@ -4,10 +4,11 @@ import { CHARACTERS, DEFAULT_CHARACTER } from './characters.js';
 
 // 目標分數由 tools/simulate.mjs 校準，見 PLAN.md
 export const LEVELS = [
-  { name: '第一位客人', kind: 'small', target: 1600, reward: 3 },
-  { name: '第二位客人', kind: 'small', target: 1900, reward: 4 },
+  { name: '兔子小姐・小桃', customer: 'rabbit', kind: 'small', target: 1600, reward: 3 },
+  { name: '刺蝟先生・阿刺', customer: 'hedgehog', kind: 'small', target: 1900, reward: 4 },
   {
     name: '失眠的貓頭鷹',
+    customer: 'owl',
     kind: 'boss',
     target: 2500,
     reward: 6,

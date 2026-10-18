@@ -28,6 +28,7 @@
       </header>
 
       <section class="hud" aria-label="狀態">
+        <button id="customer-chip" type="button" class="customer-chip" aria-label="客人"><canvas id="customer-canvas"></canvas></button>
         <div id="score-card" class="panel score">
           <div class="score-line"><span id="stat-score">0</span><span class="of">/ <span id="stat-target">0</span></span></div>
           <div class="bar"><div id="score-bar" class="bar-fill"></div></div>
@@ -40,6 +41,7 @@
           <span id="gold-icon" class="gold-icon"></span>
           <span id="stat-gold">0</span>
         </div>
+        <div id="customer-bubble" class="customer-bubble" hidden><strong id="customer-name"></strong><span id="customer-line"></span></div>
       </section>
 
       <!-- 開場：選角 -->
@@ -125,7 +127,10 @@
           <span id="shop-icon" class="shop-icon"></span>
           <h2 class="title-text">占卜室</h2>
         </div>
-        <p class="shop-sub">抽到三張牌，選一張帶走。<br />下一位客人：<strong id="shop-next"></strong>（目標 <span id="shop-next-target"></span> 分）</p>
+        <div class="shop-next">
+          <canvas id="shop-customer" class="shop-customer"></canvas>
+          <p class="shop-sub">抽到三張牌，選一張帶走。<br />下一位客人：<strong id="shop-next"></strong>（目標 <span id="shop-next-target"></span> 分）</p>
+        </div>
         <p id="shop-rule" class="shop-rule"></p>
         <div id="offers" class="offers"></div>
         <div class="shop-actions">
