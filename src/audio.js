@@ -72,7 +72,8 @@ const SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26, 28];
 const note = (i) => 523.25 * 2 ** (SCALE[Math.min(i, SCALE.length - 1)] / 12);
 
 function vibrate(pattern) {
-  if (muted) return;
+  // 使用者還沒點過畫面時瀏覽器會擋下並在主控台報錯，乾脆不呼叫
+  if (muted || navigator.userActivation?.hasBeenActive === false) return;
   try {
     navigator.vibrate?.(pattern);
   } catch {

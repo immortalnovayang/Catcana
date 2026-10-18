@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b0820" />
+    <title>Canvas 試作 · 貓咪占卜師</title>
+    <style>
+      :root {
+        --gold: #ffd36e;
+        --gold-dark: #8a5a12;
+        --text: #f4ecff;
+        --muted: #b5a6d6;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0b0820;
+        color: var(--text);
+        font-family: system-ui, -apple-system, 'Segoe UI', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+      }
+      canvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .top,
+      .bottom {
+        position: fixed;
+        left: 0;
+        right: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 0 16px;
+        pointer-events: none;
+      }
+      .top {
+        top: max(14px, env(safe-area-inset-top));
+      }
+      .bottom {
+        bottom: max(16px, env(safe-area-inset-bottom));
+      }
+      .title {
+        font-size: 0.8rem;
+        letter-spacing: 0.2em;
+        color: var(--muted);
+      }
+      .score {
+        font-size: 2.2rem;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+        background: linear-gradient(180deg, #fff6d8, var(--gold) 55%, #e09a2a);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 2px 0 #5a3508) drop-shadow(0 0 10px rgba(255, 200, 90, 0.35));
+      }
+      .score.bump {
+        animation: bump 240ms ease-out;
+      }
+      @keyframes bump {
+        40% {
+          transform: scale(1.18);
+        }
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 10px;
+        pointer-events: auto;
+      }
+      button,
+      a.btn {
+        font: inherit;
+        font-weight: 800;
+        font-size: 0.95rem;
+        color: #3a2206;
+        background: linear-gradient(180deg, #fff1bf, var(--gold) 50%, #e8a93a);
+        border: 0;
+        border-radius: 14px;
+        padding: 11px 18px;
+        min-height: 46px;
+        box-shadow: 0 4px 0 var(--gold-dark), 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        transition: transform 80ms ease, box-shadow 80ms ease;
+      }
+      button:active,
+      a.btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 var(--gold-dark), 0 3px 8px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      }
+      button.violet {
+        color: #fff;
+        background: linear-gradient(180deg, #c9a2ff, #8a4fdc 55%, #6a2fbf);
+        box-shadow: 0 4px 0 #3b166e, 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+      }
+      button.violet:active {
+        box-shadow: 0 1px 0 #3b166e, 0 3px 8px rgba(0, 0, 0, 0.45);
+      }
+      button:disabled {
+        filter: grayscale(0.7) brightness(0.7);
+      }
+      .small {
+        font-size: 0.75rem;
+        color: var(--muted);
+        pointer-events: auto;
+      }
+      .small a {
+        color: var(--muted);
+      }
+      #fps {
+        position: fixed;
+        top: max(8px, env(safe-area-inset-top));
+        right: 10px;
+        font-size: 0.7rem;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div class="top">
+      <div class="title">夜空占卜帳篷 · Canvas 試作</div>
+      <div id="score" class="score">0</div>
+    </div>
+    <div id="fps"></div>
+    <div class="bottom">
+      <div class="row">
+        <button id="btn-chain" type="button">示範連鎖 ×5</button>
+        <button id="btn-sun" type="button" class="violet">太陽爆發</button>
+      </div>
+      <div class="small">可以直接滑動水晶 · 畫質 <a href="#" id="btn-quality">自動</a> · <a href="../">回到遊戲</a></div>
+    </div>
+    <script type="module" src="board.js"></script>
+  </body>
+</html>
