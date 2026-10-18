@@ -17,7 +17,7 @@ export const CATALOG = [
     id,
     name,
     kind: 'planet',
-    icon: '🪐',
+    icon: 'planet',
     price: 4,
     desc: `${CRYSTAL_INFO[type].name}基礎分 +${PLANET_BONUS}`,
     apply: (run) => {
@@ -28,7 +28,7 @@ export const CATALOG = [
     id: 'hourglass',
     name: '星砂沙漏',
     kind: 'relic',
-    icon: '⏳',
+    icon: 'hourglass',
     price: 6,
     desc: '之後每關步數 +2',
     apply: (run) => {
@@ -39,7 +39,7 @@ export const CATALOG = [
     id: 'cards',
     name: '備用牌組',
     kind: 'relic',
-    icon: '🃏',
+    icon: 'deck',
     price: 3,
     desc: '之後每關洗牌次數 +1',
     apply: (run) => {
@@ -50,7 +50,7 @@ export const CATALOG = [
     id: 'seed-bag',
     name: '種子袋',
     kind: 'relic',
-    icon: '🌰',
+    icon: 'sack',
     price: 4,
     desc: '之後每關開始多 3 顆種子（3 步後長成花晶，基礎分 ×3）',
     apply: (run) => {
@@ -61,7 +61,7 @@ export const CATALOG = [
     id: 'egg-basket',
     name: '蛋籃',
     kind: 'relic',
-    icon: '🧺',
+    icon: 'basket',
     price: 4,
     desc: '之後每關開始多 2 顆蛋（旁邊有消除就孵化成種子）',
     apply: (run) => {

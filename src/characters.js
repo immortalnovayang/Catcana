@@ -3,7 +3,7 @@ export const CHARACTERS = {
   aries: {
     id: 'aries',
     name: '牡羊座・紅毛衝衝',
-    icon: '🐈',
+    icon: 'cat',
     element: 'fire',
     passive: '每關前 3 步倍率 +1',
     intro: '急性子的紅毛貓，一開場就想把氣勢衝到最高。',

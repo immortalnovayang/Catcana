@@ -10,7 +10,7 @@ export const TAROT = [
   {
     id: 'ace-wands',
     name: '權杖王牌',
-    icon: '🔥',
+    icon: 'wand',
     price: 5,
     tags: ['火'],
     up: {
@@ -29,7 +29,7 @@ export const TAROT = [
   {
     id: 'three-cups',
     name: '聖杯三',
-    icon: '🍷',
+    icon: 'cup',
     price: 6,
     tags: ['水', '連鎖'],
     up: {
@@ -49,7 +49,7 @@ export const TAROT = [
   {
     id: 'knight-swords',
     name: '寶劍騎士',
-    icon: '⚔️',
+    icon: 'sword',
     price: 5,
     tags: ['風'],
     up: {
@@ -68,7 +68,7 @@ export const TAROT = [
   {
     id: 'ten-pentacles',
     name: '錢幣十',
-    icon: '💰',
+    icon: 'pentacle',
     price: 5,
     tags: ['經濟'],
     up: {
@@ -88,7 +88,7 @@ export const TAROT = [
   {
     id: 'lovers',
     name: '戀人',
-    icon: '💞',
+    icon: 'hearts',
     price: 6,
     tags: ['元素'],
     up: {
@@ -107,7 +107,7 @@ export const TAROT = [
   {
     id: 'star',
     name: '星星',
-    icon: '⭐',
+    icon: 'star',
     price: 4,
     tags: ['星'],
     up: {
@@ -127,7 +127,7 @@ export const TAROT = [
   {
     id: 'magician',
     name: '魔術師',
-    icon: '🎩',
+    icon: 'hat',
     // 變色一次就可能清掉一整關，所以做成稀有又昂貴的大獎
     price: 10,
     weight: 0.35,
@@ -149,7 +149,7 @@ export const TAROT = [
   {
     id: 'wheel',
     name: '命運之輪',
-    icon: '🎡',
+    icon: 'wheel',
     price: 5,
     tags: ['預言'],
     up: {
@@ -170,7 +170,7 @@ export const TAROT = [
   {
     id: 'sun',
     name: '太陽',
-    icon: '☀️',
+    icon: 'sun',
     price: 6,
     tags: ['爆發'],
     up: {
@@ -189,7 +189,7 @@ export const TAROT = [
   {
     id: 'seven-pentacles',
     name: '錢幣七',
-    icon: '🌱',
+    icon: 'sprout',
     price: 5,
     tags: ['土', '成長'],
     up: {
@@ -211,7 +211,7 @@ export const TAROT = [
   {
     id: 'page-cups',
     name: '聖杯侍者',
-    icon: '🥚',
+    icon: 'egg',
     price: 5,
     tags: ['連鎖', '成長'],
     up: {
@@ -233,7 +233,7 @@ export const TAROT = [
   {
     id: 'tower',
     name: '塔',
-    icon: '🗼',
+    icon: 'tower',
     // 跟魔術師一樣是一次清場的大招，做成稀有又昂貴
     price: 8,
     weight: 0.5,

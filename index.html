@@ -2,121 +2,160 @@
 <html lang="zh-Hant">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#1c1430" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b0820" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>貓咪占卜師</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔮</text></svg>" />
+    <link id="favicon" rel="icon" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <canvas id="stage" aria-hidden="true"></canvas>
+
     <main class="app">
-      <header class="top">
-        <h1>貓咪占卜師</h1>
-        <button id="btn-mute" type="button" class="mute"></button>
-        <p id="level-label" class="sub"></p>
+      <header class="topbar">
+        <button id="btn-help" type="button" class="icon-btn" aria-label="規則說明"></button>
+        <div class="level">
+          <div id="level-label" class="level-name"></div>
+          <div id="level-sub" class="level-sub"></div>
+        </div>
+        <button id="btn-mute" type="button" class="icon-btn"></button>
       </header>
 
       <section class="hud" aria-label="狀態">
-        <div id="score-card" class="stat score">
-          <span class="label">分數 / 目標</span>
-          <span class="value"><span id="stat-score">0</span><span class="of"> / <span id="stat-target">0</span></span></span>
+        <div id="score-card" class="panel score">
+          <div class="score-line"><span id="stat-score">0</span><span class="of">/ <span id="stat-target">0</span></span></div>
           <div class="bar"><div id="score-bar" class="bar-fill"></div></div>
         </div>
-        <div id="steps-card" class="stat"><span class="label">剩餘步數</span><span id="stat-steps" class="value">0</span></div>
-        <div class="stat"><span class="label">金幣</span><span id="stat-gold" class="value gold">0</span></div>
-      </section>
-
-      <div id="hand" class="hand" aria-label="手牌"></div>
-      <p id="card-detail" class="card-detail" hidden></p>
-
-      <section id="intro" class="intro" hidden aria-label="角色">
-        <div class="intro-card">
-          <div id="intro-icon" class="intro-icon"></div>
-          <h2 id="intro-name"></h2>
-          <p id="intro-text" class="intro-text"></p>
-          <dl>
-            <dt>被動能力</dt>
-            <dd id="intro-passive"></dd>
-            <dt>起始塔羅</dt>
-            <dd id="intro-card"></dd>
-          </dl>
-          <button id="btn-start" type="button">開始占卜</button>
+        <div id="steps-card" class="steps-badge" aria-label="剩餘步數">
+          <span id="stat-steps">0</span>
+          <small>步</small>
         </div>
-        <p class="intro-more">其他星座貓咪之後加入。</p>
+        <div id="gold-card" class="panel gold-panel" aria-label="金幣">
+          <span id="gold-icon" class="gold-icon"></span>
+          <span id="stat-gold">0</span>
+        </div>
       </section>
 
-      <section id="play" class="play">
-        <p id="step-info" class="step-info"></p>
-        <div id="preview" class="preview" hidden></div>
+      <!-- 開場：選角 -->
+      <section id="intro" class="screen intro" hidden aria-label="選擇角色">
+        <div class="hero-card">
+          <div id="intro-portrait" class="portrait-frame"></div>
+          <h2 id="intro-name" class="title-text"></h2>
+          <p id="intro-text" class="intro-text"></p>
+          <div class="intro-row">
+            <div id="intro-card" class="intro-start-card"></div>
+            <dl class="intro-info">
+              <dt>被動能力</dt>
+              <dd id="intro-passive"></dd>
+              <dt>起始塔羅</dt>
+              <dd id="intro-card-desc"></dd>
+            </dl>
+          </div>
+          <button id="btn-start" type="button" class="btn btn-gold btn-big">開始占卜</button>
+        </div>
+        <div class="locked-row" aria-label="尚未解鎖的角色">
+          <span class="locked"></span><span class="locked"></span><span class="locked"></span>
+        </div>
+        <p class="muted-note">其他星座貓咪之後加入</p>
+      </section>
 
-        <div class="board-wrap">
-          <div id="board" class="board" role="application" aria-label="三消盤面"></div>
-          <div id="result" class="result" hidden>
-            <div class="result-card">
-              <h2 id="result-title"></h2>
-              <dl>
-                <div><dt>得分</dt><dd id="result-score"></dd></div>
-                <div><dt>目標</dt><dd id="result-target"></dd></div>
-                <div><dt>剩餘步數</dt><dd id="result-steps"></dd></div>
-                <div><dt>最高連鎖</dt><dd id="result-chain"></dd></div>
-              </dl>
-              <ul id="result-reward" class="reward"></ul>
-              <p id="result-note" class="result-note"></p>
-              <div id="run-summary" class="run-summary" hidden>
-                <h3>這一局</h3>
-                <p id="sum-result" class="sum-result"></p>
-                <dl>
-                  <div><dt>總分</dt><dd id="sum-total"></dd></div>
-                  <div><dt>最佳一步</dt><dd id="sum-step"></dd></div>
-                  <div><dt>最高連鎖</dt><dd id="sum-chain"></dd></div>
+      <!-- 關卡 -->
+      <section id="play" class="screen play" hidden>
+        <div class="info-row">
+          <p id="step-info" class="step-info"></p>
+          <div id="preview" class="preview" hidden></div>
+        </div>
+
+        <div class="board-area">
+          <div class="board-wrap">
+            <div id="board" class="board" role="application" aria-label="三消盤面"></div>
+            <div id="result" class="result" hidden>
+              <div class="result-card">
+                <div class="ribbon"><h2 id="result-title"></h2></div>
+                <dl class="result-stats">
+                  <div><dt>得分</dt><dd id="result-score"></dd></div>
+                  <div><dt>目標</dt><dd id="result-target"></dd></div>
+                  <div><dt>剩餘步數</dt><dd id="result-steps"></dd></div>
+                  <div><dt>最高連鎖</dt><dd id="result-chain"></dd></div>
                 </dl>
-                <p id="sum-cards" class="sum-cards"></p>
-                <div class="sum-actions">
-                  <button id="btn-share" type="button" class="ghost">分享成績</button>
-                  <a id="btn-feedback" class="button ghost" target="_blank" rel="noopener">給點回饋</a>
+                <ul id="result-reward" class="reward"></ul>
+                <p id="result-note" class="result-note"></p>
+                <div id="run-summary" class="run-summary" hidden>
+                  <p id="sum-result" class="sum-result"></p>
+                  <dl class="result-stats three">
+                    <div><dt>總分</dt><dd id="sum-total"></dd></div>
+                    <div><dt>最佳一步</dt><dd id="sum-step"></dd></div>
+                    <div><dt>最高連鎖</dt><dd id="sum-chain"></dd></div>
+                  </dl>
+                  <div id="sum-cards" class="mini-hand"></div>
+                  <div class="sum-actions">
+                    <button id="btn-share" type="button" class="btn btn-dark btn-small"></button>
+                    <a id="btn-feedback" class="btn btn-dark btn-small" target="_blank" rel="noopener"></a>
+                  </div>
                 </div>
-              </div>
-              <div class="result-actions">
-                <button id="btn-result-main" type="button"></button>
+                <button id="btn-result-main" type="button" class="btn btn-gold btn-big"></button>
               </div>
             </div>
           </div>
         </div>
 
-        <section class="actions">
-          <button id="btn-magic" type="button" class="card-btn" hidden></button>
-          <button id="btn-requeue" type="button" class="card-btn" hidden></button>
-          <button id="btn-tower" type="button" class="card-btn" hidden></button>
-          <button id="btn-shuffle" type="button">洗牌（2）</button>
-          <button id="btn-restart" type="button" class="ghost">重新開始</button>
-        </section>
+        <div class="hand-area">
+          <p id="card-detail" class="card-detail" hidden></p>
+          <div id="hand" class="hand" aria-label="手牌"></div>
+        </div>
+
+        <nav class="skills" aria-label="技能">
+          <button id="btn-magic" type="button" class="skill" hidden></button>
+          <button id="btn-tower" type="button" class="skill" hidden></button>
+          <button id="btn-requeue" type="button" class="skill" hidden></button>
+          <button id="btn-shuffle" type="button" class="skill skill-main"></button>
+          <button id="btn-restart" type="button" class="skill skill-small" aria-label="重新開始"></button>
+        </nav>
       </section>
 
-      <section id="shop" class="shop" hidden aria-label="占卜室">
-        <h2>🔮 占卜室</h2>
-        <p class="shop-sub">抽到三張牌，選一張帶走。下一位客人是 <strong id="shop-next"></strong>（目標 <span id="shop-next-target"></span> 分）</p>
+      <!-- 占卜室（商店） -->
+      <section id="shop" class="screen shop" hidden aria-label="占卜室">
+        <div class="shop-head">
+          <span id="shop-icon" class="shop-icon"></span>
+          <h2 class="title-text">占卜室</h2>
+        </div>
+        <p class="shop-sub">抽到三張牌，選一張帶走。<br />下一位客人：<strong id="shop-next"></strong>（目標 <span id="shop-next-target"></span> 分）</p>
         <p id="shop-rule" class="shop-rule"></p>
         <div id="offers" class="offers"></div>
         <div class="shop-actions">
-          <button id="btn-reroll" type="button" class="ghost"></button>
-          <button id="btn-leave" type="button">迎接下一位客人</button>
+          <button id="btn-reroll" type="button" class="btn btn-dark"></button>
+          <button id="btn-leave" type="button" class="btn btn-gold"></button>
         </div>
-        <h3 class="shop-hand-title">手牌</h3>
-        <div id="shop-hand" class="hand"></div>
+        <div class="shop-hand-box">
+          <div class="shop-hand-title">手牌（點牌上的 × 可以棄牌）</div>
+          <div id="shop-hand" class="hand"></div>
+          <p id="shop-perks" class="shop-perks"></p>
+        </div>
         <p id="shop-hint" class="shop-hint"></p>
       </section>
-
-      <p id="perks" class="perks"></p>
-
-      <footer class="foot">
-        <p>滑動水晶，或先點一顆再點旁邊那顆來交換。三顆同色連線就會消除。</p>
-        <p>得分 =（水晶分數 + 形狀加值）× 連鎖倍率。4 連、5 連、L / T 形有加值，連鎖越多層倍率越高。</p>
-        <p>一局三位客人，過關拿金幣，在占卜室換強化。剩餘步數會換成金幣。</p>
-        <p>塔羅牌最多 5 張，點一下可以看效果。逆位比較強，但有代價。</p>
-        <p>🌱 種子走 3 步會長成 🌸 花晶，基礎分 ×3。🥚 蛋和 💤 沉睡水晶不能配對，旁邊有消除時會孵化或醒來。</p>
-        <p class="meta"><span id="version"></span> · 種子 <span id="seed"></span></p>
-      </footer>
     </main>
+
+    <!-- 規則說明 -->
+    <div id="help" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <div class="modal-card">
+        <button id="btn-help-close" type="button" class="icon-btn modal-close" aria-label="關閉"></button>
+        <h2 id="help-title" class="title-text">占卜規則</h2>
+        <ul class="rules">
+          <li>滑動水晶，或先點一顆再點旁邊那顆來交換。三顆同色連成一線就會消除。</li>
+          <li>得分 =（水晶分數 + 形狀加值）× 連鎖倍率。4 連、5 連、L 形、T 形有加值，連鎖越多層倍率越高。</li>
+          <li>一局有三位客人，最後一位是 Boss。過關可以拿金幣，剩下的步數也會換成金幣。</li>
+          <li>關卡之間會進占卜室，三張牌選一張帶走。塔羅牌最多 5 張，點一下可以看效果。逆位比較強，但有代價。</li>
+          <li><span id="help-ic-sprout" class="rule-ic"></span>種子走 3 步會長成<span id="help-ic-flower" class="rule-ic"></span>花晶，基礎分 ×3。</li>
+          <li><span id="help-ic-egg" class="rule-ic"></span>蛋和<span id="help-ic-moon" class="rule-ic"></span>沉睡水晶不能拿來配對，旁邊有消除時會孵化或醒來。</li>
+        </ul>
+        <p id="help-perks" class="help-perks"></p>
+        <p class="meta"><span id="version"></span> · 種子 <span id="seed"></span> · <a href="demo/board.html">Canvas 試作頁</a></p>
+      </div>
+    </div>
+
     <script type="module" src="src/main.js"></script>
   </body>
 </html>

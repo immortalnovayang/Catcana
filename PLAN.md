@@ -5,7 +5,7 @@
 ## 技術選擇
 
 - 純 HTML / CSS / JavaScript（ES modules），不需建置，push 到 `main` 就能直接由 GitHub Pages 發佈
-- 盤面用 DOM + CSS transform 繪製，動畫交給 CSS transition 與 Web Animations API
+- 盤面、背景與特效用一張全螢幕 Canvas 繪製（`src/board-canvas.js`），水晶與特效全由程式畫出；介面（HUD、手牌、商店、對話框）仍用 DOM，圖示是自製 SVG（`src/icons.js`）
 - 盤面邏輯（`src/board.js`）不碰 DOM，方便用 node 直接測試
 - 隨機數用可指定種子的 RNG，網址加 `?seed=123` 可重現同一盤，方便朋友回報問題
 - 手機優先：滑動或點兩下交換，畫面寬度自動縮放
@@ -21,6 +21,7 @@
 | M4 | 12 張塔羅牌（正逆位）、最多 5 張、角色「牡羊座・紅毛衝衝」 | 完成 |
 | M5 | 特殊方塊：種子、蛋；Boss「失眠的貓頭鷹」與沉睡水晶；塔羅：錢幣七、聖杯侍者、塔 | 完成（另加商店道具：種子袋、蛋籃） |
 | M6 | 爽感：粒子、震動、數字跳動、音效；結算畫面與回饋連結 | 完成 |
+| v0.7 | 介面改版：Canvas 繪製盤面與特效、拿掉所有 emoji 改用 SVG 圖示、改成手機遊戲版面 | 完成 |
 
 ## 試玩回饋
 
