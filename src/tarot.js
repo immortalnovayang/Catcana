@@ -1,7 +1,6 @@
 // 塔羅遺物。每張牌有正位與逆位，逆位更強但有代價
 // price：正位價格（逆位 +1）；weight：在商店出現的相對機率，預設 1
 // apply(fx, p)：把效果寫進 fx。p 是效力（魔術師逆位會讓其他牌只剩 80%），只縮放好處，不縮放代價
-// 錢幣七（種子）、聖杯侍者（蛋）、塔（逆位要沉睡水晶）依賴 M5 的特殊方塊，到時候再加入
 const scale = (n, p) => Math.round(n * p);
 const scaleMul = (m, p) => 1 + (m - 1) * p;
 
@@ -184,6 +183,73 @@ export const TAROT = [
       desc: '消除 5 連以上時，整個盤面的同色水晶一起消除，但這一步不計連鎖',
       apply(fx) {
         fx.sun = 'board';
+      },
+    },
+  },
+  {
+    id: 'seven-pentacles',
+    name: '錢幣七',
+    icon: '🌱',
+    price: 5,
+    tags: ['土', '成長'],
+    up: {
+      desc: '每關開始多 2 顆種子；種子提早 1 步長成花晶',
+      apply(fx, p) {
+        fx.startSeeds += scale(2, p);
+        fx.growSteps = Math.min(fx.growSteps, 2);
+      },
+    },
+    rev: {
+      desc: '每關開始多 2 顆種子；種子立刻長成花晶，但花晶分數 ×2（不是 ×3）',
+      apply(fx, p) {
+        fx.startSeeds += scale(2, p);
+        fx.growSteps = 0;
+        fx.flowerMult = 2;
+      },
+    },
+  },
+  {
+    id: 'page-cups',
+    name: '聖杯侍者',
+    icon: '🥚',
+    price: 5,
+    tags: ['連鎖', '成長'],
+    up: {
+      desc: '每關開始多 1 顆蛋；蛋孵化時再生出 1 顆蛋',
+      apply(fx, p) {
+        fx.startEggs += 1;
+        fx.eggExtra += scale(1, p);
+      },
+    },
+    rev: {
+      desc: '每關開始多 1 顆蛋；蛋孵化時再生出 2 顆，但每顆有 1/3 機率是沉睡水晶',
+      apply(fx, p) {
+        fx.startEggs += 1;
+        fx.eggExtra += scale(2, p);
+        fx.eggSleepChance = 1 / 3;
+      },
+    },
+  },
+  {
+    id: 'tower',
+    name: '塔',
+    icon: '🗼',
+    // 跟魔術師一樣是一次清場的大招，做成稀有又昂貴
+    price: 8,
+    weight: 0.5,
+    tags: ['規則改寫'],
+    active: true,
+    up: {
+      desc: '每關一次：清空整個盤面並計分（不耗步數）',
+      apply(fx) {
+        fx.towerUses += 1;
+      },
+    },
+    rev: {
+      desc: '每關兩次清空盤面並計分；每次清空後隨機 2 顆水晶睡著',
+      apply(fx) {
+        fx.towerUses += 2;
+        fx.towerSleep = 2;
       },
     },
   },

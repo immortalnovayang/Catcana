@@ -71,6 +71,7 @@
         <section class="actions">
           <button id="btn-magic" type="button" class="card-btn" hidden></button>
           <button id="btn-requeue" type="button" class="card-btn" hidden></button>
+          <button id="btn-tower" type="button" class="card-btn" hidden></button>
           <button id="btn-shuffle" type="button">洗牌（2）</button>
           <button id="btn-restart" type="button" class="ghost">重新開始</button>
         </section>
@@ -79,6 +80,7 @@
       <section id="shop" class="shop" hidden aria-label="占卜室">
         <h2>🔮 占卜室</h2>
         <p class="shop-sub">抽到三張牌，選一張帶走。下一位客人是 <strong id="shop-next"></strong>（目標 <span id="shop-next-target"></span> 分）</p>
+        <p id="shop-rule" class="shop-rule"></p>
         <div id="offers" class="offers"></div>
         <div class="shop-actions">
           <button id="btn-reroll" type="button" class="ghost"></button>
@@ -96,6 +98,7 @@
         <p>得分 =（水晶分數 + 形狀加值）× 連鎖倍率。4 連、5 連、L / T 形有加值，連鎖越多層倍率越高。</p>
         <p>一局三位客人，過關拿金幣，在占卜室換強化。剩餘步數會換成金幣。</p>
         <p>塔羅牌最多 5 張，點一下可以看效果。逆位比較強，但有代價。</p>
+        <p>🌱 種子走 3 步會長成 🌸 花晶，基礎分 ×3。🥚 蛋和 💤 沉睡水晶不能配對，旁邊有消除時會孵化或醒來。</p>
         <p class="meta"><span id="version"></span> · 種子 <span id="seed"></span></p>
       </footer>
     </main>

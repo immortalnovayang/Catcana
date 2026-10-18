@@ -15,7 +15,7 @@ node dev-server.mjs
 網址參數：
 
 - `?seed=123`：指定盤面種子，重現同一盤
-- `?cards=magician,wheel-r`：測試用，直接指定開局手牌（`-r` 代表逆位）。可用的 id：`ace-wands`、`three-cups`、`knight-swords`、`ten-pentacles`、`lovers`、`star`、`magician`、`wheel`、`sun`
+- `?cards=magician,wheel-r`：測試用，直接指定開局手牌（`-r` 代表逆位）。可用的 id：`ace-wands`、`three-cups`、`knight-swords`、`ten-pentacles`、`lovers`、`star`、`magician`、`wheel`、`sun`、`seven-pentacles`、`page-cups`、`tower`
 
 ## 發佈到 GitHub Pages
 

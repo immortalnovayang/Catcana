@@ -16,7 +16,13 @@ export function groupBonus(group) {
 }
 
 // fx 是塔羅牌與角色彙整出的效果（見 effects.js）；沒有任何效果時用這份
-export const PLAIN_FX = { baseTable: BASE_SCORE, layerMods: [], groupMods: [] };
+export const PLAIN_FX = { baseTable: BASE_SCORE, layerMods: [], groupMods: [], flowerMult: 3 };
+
+// 一組裡每顆的基礎分加總；花晶的基礎分 × flowerMult，蛋沒有分數
+function groupBase(g, fx) {
+  const per = fx.baseTable[g.type] ?? 0;
+  return g.cells.reduce((s, c) => s + per * (c.tile?.special === 'flower' ? fx.flowerMult : 1), 0);
+}
 
 // 一層消除的得分。ctx = { chain, step, noChain }
 // 層倍率 = (連鎖層數 + Σ加倍率) × Π乘倍率；連鎖層數從 1 開始，noChain 時固定為 1
@@ -33,7 +39,7 @@ export function scoreLayer(groups, ctx, fx = PLAIN_FX) {
   }
   const mult = Math.max(0, ((ctx.noChain ? 1 : ctx.chain) + add) * mul);
   const parts = groups.map((g) => {
-    const base = g.cells.length * fx.baseTable[g.type];
+    const base = groupBase(g, fx);
     const bonus = groupBonus(g);
     let groupMul = 1;
     for (const mod of fx.groupMods) groupMul *= mod(g, ctx) ?? 1;

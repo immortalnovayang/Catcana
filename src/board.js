@@ -1,6 +1,11 @@
 // 盤面邏輯：不碰 DOM，只處理格子資料，方便單獨測試
 export const CRYSTALS = ['fire', 'water', 'wind', 'earth', 'star'];
 
+// 蛋與沉睡水晶不能拿來配對
+export function isMatchable(tile) {
+  return tile != null && tile.type !== 'egg' && tile.special !== 'sleep';
+}
+
 let nextId = 1;
 export function makeTile(type) {
   return { id: nextId++, type };
@@ -105,12 +110,17 @@ export class Board {
 
   #sameType(x, y, type) {
     const t = this.get(x, y);
-    return t !== null && t.type === type;
+    return isMatchable(t) && t.type === type;
+  }
+
+  #matchType(x, y) {
+    const t = this.get(x, y);
+    return isMatchable(t) ? t.type : null;
   }
 
   // 經過 (x, y) 的橫向或縱向是否已連成 3 個以上
   #matchesAt(x, y) {
-    const type = this.get(x, y)?.type;
+    const type = this.#matchType(x, y);
     if (!type) return false;
     let h = 1;
     for (let i = x - 1; this.#sameType(i, y, type); i--) h++;
@@ -122,24 +132,29 @@ export class Board {
     return v >= 3;
   }
 
+  // 格子座標連同當下的方塊（計分要看花晶）
+  #cell(x, y) {
+    return { x, y, tile: this.grid[y][x] };
+  }
+
   // 找出所有可消除的組合；共用格子的同色直線會併成一組（L、T 形之後計分會用到）
   findMatches() {
     const runs = [];
     for (let y = 0; y < this.size; y++) {
       for (let x = 0; x < this.size; ) {
-        const type = this.grid[y][x]?.type;
+        const type = this.#matchType(x, y);
         let len = 1;
         while (type && this.#sameType(x + len, y, type)) len++;
-        if (type && len >= 3) runs.push({ type, cells: Array.from({ length: len }, (_, i) => ({ x: x + i, y })) });
+        if (type && len >= 3) runs.push({ type, cells: Array.from({ length: len }, (_, i) => this.#cell(x + i, y)) });
         x += len;
       }
     }
     for (let x = 0; x < this.size; x++) {
       for (let y = 0; y < this.size; ) {
-        const type = this.grid[y][x]?.type;
+        const type = this.#matchType(x, y);
         let len = 1;
         while (type && this.#sameType(x, y + len, type)) len++;
-        if (type && len >= 3) runs.push({ type, cells: Array.from({ length: len }, (_, i) => ({ x, y: y + i })) });
+        if (type && len >= 3) runs.push({ type, cells: Array.from({ length: len }, (_, i) => this.#cell(x, y + i)) });
         y += len;
       }
     }
@@ -171,6 +186,84 @@ export class Board {
 
   clear(cells) {
     for (const { x, y } of cells) this.grid[y][x] = null;
+  }
+
+  // ---------- 特殊方塊 ----------
+  // 種子：tile.special = 'seed'，保有顏色、照常配對；長成花晶（'flower'）後基礎分加倍
+  // 蛋：tile.type = 'egg'，不能配對；旁邊有消除時孵化成種子
+  // 沉睡水晶：tile.special = 'sleep'，不能配對；旁邊有消除時醒來
+
+  // 把隨機 n 顆普通水晶變成特殊方塊，回傳變了哪些格子
+  placeSpecial(kind, n, { flower = false } = {}) {
+    // 消除後、掉落前也會呼叫，所以要跳過空格
+    const spots = [...this.cells()].filter((c) => c.tile && c.tile.type !== 'egg' && !c.tile.special);
+    const placed = [];
+    for (let i = 0; i < n && spots.length; i++) {
+      const c = spots.splice(this.rng.int(spots.length), 1)[0];
+      if (kind === 'egg') c.tile.type = 'egg';
+      else if (kind === 'sleep') c.tile.special = 'sleep';
+      else {
+        c.tile.special = flower ? 'flower' : 'seed';
+        c.tile.age = 0;
+      }
+      placed.push(c);
+    }
+    return placed;
+  }
+
+  // 消除之後（格子已清空、還沒掉落），處理旁邊的沉睡水晶與蛋
+  // eggExtra：每次孵化再生幾顆蛋；eggSleepChance：生出的那顆改成沉睡水晶的機率
+  react(cells, { eggExtra = 0, eggSleepChance = 0, flower = false } = {}) {
+    const woke = [];
+    const hatched = [];
+    let newEggs = 0;
+    let newSleeps = 0;
+    for (const { x, y } of cells) {
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
+        const t = this.get(nx, ny);
+        if (!t) continue;
+        if (t.special === 'sleep') {
+          t.special = null;
+          woke.push({ x: nx, y: ny });
+        } else if (t.type === 'egg') {
+          t.type = this.#randomType();
+          t.special = flower ? 'flower' : 'seed';
+          t.age = 0;
+          hatched.push({ x: nx, y: ny });
+          for (let k = 0; k < eggExtra; k++) {
+            if (this.rng() < eggSleepChance) newSleeps++;
+            else newEggs++;
+          }
+        }
+      }
+    }
+    this.placeSpecial('egg', newEggs);
+    this.placeSpecial('sleep', newSleeps);
+    return { woke, hatched, newEggs, newSleeps };
+  }
+
+  // 每走一步，種子長大一歲；到 growSteps 就開成花晶。回傳這次開了幾朵
+  tickSeeds(growSteps) {
+    let grown = 0;
+    for (const { tile } of this.cells()) {
+      if (tile.special !== 'seed') continue;
+      tile.age = (tile.age ?? 0) + 1;
+      if (tile.age >= growSteps) {
+        tile.special = 'flower';
+        grown++;
+      }
+    }
+    return grown;
+  }
+
+  // 塔：整個盤面依種類分組，一次全部清掉
+  allGroups() {
+    const byType = new Map();
+    for (const { x, y, tile } of this.cells()) {
+      if (!byType.has(tile.type)) byType.set(tile.type, { type: tile.type, cells: [], runs: 1, longest: 0 });
+      byType.get(tile.type).cells.push({ x, y, tile });
+    }
+    return [...byType.values()];
   }
 
   // 方塊往下掉並從上方補新的。spawns 記錄新方塊從盤面外哪一列落下，給動畫用

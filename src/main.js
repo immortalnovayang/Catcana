@@ -1,4 +1,4 @@
-// M4：角色開場 → 三位客人（小、小、Boss），關卡之間進占卜室抽三選一；塔羅牌改寫計分與規則
+// M5：角色開場 → 三位客人（小、小、Boss），關卡之間進占卜室抽三選一；塔羅牌改寫計分與規則
 import { Board } from './board.js';
 import { createRng, randomSeed } from './rng.js';
 import { scoreLayer } from './scoring.js';
@@ -17,11 +17,13 @@ import {
   levelSeed,
   levelShuffles,
   levelSteps,
+  OWL_EVERY,
+  OWL_SLEEPS,
   shopSeed,
 } from './run.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.4 · M4';
+const VERSION = 'v0.5 · M5';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -44,6 +46,7 @@ const state = {
   bestChain: 0,
   magicLeft: 0,
   requeueLeft: 0,
+  towerLeft: 0,
   pick: null, // 魔術師選色中：{ from: null | type }
 };
 
@@ -113,6 +116,10 @@ function updateHud() {
   magic.hidden = !fx || fx.magicianUses === 0;
   magic.textContent = state.pick ? '取消魔術' : `🎩 魔術（${state.magicLeft}）`;
   magic.disabled = state.pick ? false : state.magicLeft === 0 || locked;
+  const tower = $('btn-tower');
+  tower.hidden = !fx || fx.towerUses === 0;
+  tower.textContent = `🗼 塔（${state.towerLeft}）`;
+  tower.disabled = state.towerLeft === 0 || locked;
   const requeue = $('btn-requeue');
   requeue.hidden = !fx || fx.queueRerolls === 0;
   requeue.textContent = `🎡 重抽掉落（${state.requeueLeft}）`;
@@ -129,7 +136,9 @@ function setStepInfo(text) {
 
 function levelHint() {
   if (canFarSwap()) return `寶劍騎士：${fx.knight === 'every' ? `點兩下可以交換任意兩顆（扣 ${KNIGHT_COST} 分）` : '這一步可以交換任意兩顆'}`;
-  return `${state.stepsLeft} 步內達到 ${currentLevel(run).target} 分`;
+  const level = currentLevel(run);
+  if (level.rule) return `🦉 Boss 規則：${level.rule}`;
+  return `${state.stepsLeft} 步內達到 ${level.target} 分`;
 }
 
 // 手牌：角色 + 塔羅。點一下看說明；在占卜室可以棄牌
@@ -251,8 +260,10 @@ function startLevel() {
   state.shuffles = levelShuffles(run);
   state.bestChain = 0;
   state.magicLeft = fx.magicianUses;
+  state.towerLeft = fx.towerUses;
   state.requeueLeft = fx.queueRerolls;
   showScreen('play');
+  placeLevelSpecials();
   view.reset(state.board);
   $('result').hidden = true;
   setStepInfo(levelHint());
@@ -288,6 +299,44 @@ async function trySwap(a, b) {
   }
   updateHud();
   await resolve(groups);
+  await afterStep();
+  await afterResolve();
+}
+
+// 每走一步：種子長大；Boss 貓頭鷹每 OWL_EVERY 步讓水晶睡著
+async function afterStep() {
+  const board = state.board;
+  const grown = board.tickSeeds(fx.growSteps);
+  if (grown) view.popup(`🌸 ${grown} 朵花晶綻放`, 'note');
+  if (currentLevel(run).boss === 'owl' && state.stepsTaken % OWL_EVERY === 0 && state.stepsLeft > 0) {
+    board.placeSpecial('sleep', OWL_SLEEPS);
+    view.popup('🦉 貓頭鷹讓水晶睡著了', 'note');
+  }
+  if (view.refreshTiles()) await wait(300);
+}
+
+// 關卡開始時放上種子與蛋
+function placeLevelSpecials() {
+  const board = state.board;
+  board.placeSpecial('seed', fx.startSeeds, { flower: fx.growSteps <= 0 });
+  board.placeSpecial('egg', fx.startEggs);
+  if (!board.hasValidMove()) board.shuffle();
+}
+
+// 塔：整盤清空並計分，不耗步數
+async function useTower() {
+  if (state.busy || state.over || state.pick || state.towerLeft === 0) return;
+  state.towerLeft--;
+  state.busy = true;
+  input.clearSelection();
+  updateHud();
+  view.popup('🗼 塔崩落了！', 'big');
+  await wait(300);
+  await resolve(state.board.allGroups());
+  if (fx.towerSleep) {
+    state.board.placeSpecial('sleep', fx.towerSleep);
+    view.refreshTiles();
+  }
   await afterResolve();
 }
 
@@ -317,6 +366,14 @@ async function resolve(groups) {
     updateHud();
     await view.clear(groups, chain);
     for (const g of groups) board.clear(g.cells);
+    const reaction = board.react(
+      groups.flatMap((g) => g.cells),
+      { eggExtra: fx.eggExtra, eggSleepChance: fx.eggSleepChance, flower: fx.growSteps <= 0 },
+    );
+    if (view.refreshTiles()) {
+      for (const c of reaction.hatched) view.floatScore([c], '🐣', 'bonus');
+      for (const c of reaction.woke) view.floatScore([c], '⏰', 'chain');
+    }
     const spawns = board.collapse();
     await view.sync({ spawns, fall: true });
     if (fx.preview) renderPreview();
@@ -381,7 +438,7 @@ async function onPick(cell) {
   view.highlightType(null);
   updateHud();
   const n = state.board.recolor(from, type);
-  view.refreshTypes();
+  view.refreshTiles();
   view.popup(`🎩 ${n} 顆變身`, 'note');
   await wait(450);
   const groups = state.board.findMatches();
@@ -451,6 +508,7 @@ function openShop() {
   const next = currentLevel(run);
   $('shop-next').textContent = next.name + (next.kind === 'boss' ? '（Boss）' : '');
   $('shop-next-target').textContent = next.target;
+  $('shop-rule').textContent = next.rule ? `🦉 Boss 規則：${next.rule}` : '';
   showScreen('shop');
   renderShop();
   updateHud();
@@ -523,6 +581,7 @@ $('btn-shuffle').addEventListener('click', async () => {
 });
 
 $('btn-magic').addEventListener('click', toggleMagic);
+$('btn-tower').addEventListener('click', useTower);
 
 $('btn-requeue').addEventListener('click', () => {
   if (state.busy || state.over || state.pick || state.requeueLeft === 0) return;

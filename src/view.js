@@ -3,6 +3,9 @@ import { CRYSTAL_INFO, gemSvg } from './gems.js';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const BADGES = { seed: '🌱', flower: '🌸', sleep: '💤' };
+const SPECIAL_NAMES = { seed: '種子', flower: '花晶', sleep: '沉睡' };
+
 export class BoardView {
   constructor(el, board) {
     this.el = el;
@@ -22,30 +25,38 @@ export class BoardView {
 
   #createEl(tile) {
     const el = document.createElement('div');
-    el.innerHTML = '<div class="gem"></div>';
-    this.#paint(el, tile.type);
+    el.innerHTML = '<div class="gem"></div><span class="badge"></span>';
+    this.#paint(el, tile);
     el.style.setProperty('--delay', `${(-Math.random() * 3).toFixed(2)}s`);
     this.el.appendChild(el);
     this.els.set(tile.id, el);
     return el;
   }
 
-  #paint(el, type) {
-    el.className = `tile t-${type}`;
-    el.dataset.type = type;
-    el.firstElementChild.innerHTML = gemSvg(type);
-    el.title = CRYSTAL_INFO[type].name;
+  #paint(el, tile) {
+    const special = tile.special ?? '';
+    const selected = el.classList.contains('selected');
+    el.className = `tile t-${tile.type}${special ? ` s-${special}` : ''}${selected ? ' selected' : ''}`;
+    if (el.dataset.type !== tile.type) el.firstElementChild.innerHTML = gemSvg(tile.type);
+    el.dataset.type = tile.type;
+    el.dataset.special = special;
+    el.lastElementChild.textContent = BADGES[special] ?? '';
+    el.title = CRYSTAL_INFO[tile.type].name + (SPECIAL_NAMES[special] ? `（${SPECIAL_NAMES[special]}）` : '');
   }
 
-  // 魔術師把水晶變色後，重畫變了種類的方塊
-  refreshTypes() {
+  // 方塊變了種類或狀態（魔術師變色、孵化、長成花晶、睡著、醒來）時重畫，回傳變了幾顆
+  refreshTiles() {
+    let n = 0;
     for (const { tile } of this.board.cells()) {
-      const el = this.els.get(tile.id);
-      if (el && el.dataset.type !== tile.type) {
-        this.#paint(el, tile.type);
+      // 消除後、掉落前會有空格
+      const el = tile && this.els.get(tile.id);
+      if (el && (el.dataset.type !== tile.type || el.dataset.special !== (tile.special ?? ''))) {
+        this.#paint(el, tile);
         this.#bounce(el, 'hint');
+        n++;
       }
     }
+    return n;
   }
 
   #place(el, x, y, ms) {

@@ -6,13 +6,23 @@ import { CHARACTERS, DEFAULT_CHARACTER } from './characters.js';
 export const LEVELS = [
   { name: '第一位客人', kind: 'small', target: 1200, reward: 3 },
   { name: '第二位客人', kind: 'small', target: 1400, reward: 4 },
-  { name: '失眠的貓頭鷹', kind: 'boss', target: 1800, reward: 6 },
+  {
+    name: '失眠的貓頭鷹',
+    kind: 'boss',
+    target: 1800,
+    reward: 6,
+    boss: 'owl',
+    rule: '每 3 步，隨機 2 顆水晶睡著（旁邊有消除就會醒來）',
+  },
 ];
 
 export const BASE_STEPS = 15;
 export const BASE_SHUFFLES = 2;
 export const START_GOLD = 4;
 export const MIN_STEPS = 5;
+// 貓頭鷹：每 OWL_EVERY 步讓 OWL_SLEEPS 顆水晶睡著
+export const OWL_EVERY = 3;
+export const OWL_SLEEPS = 2;
 
 export function createRun(seed, character = DEFAULT_CHARACTER) {
   return {
@@ -24,6 +34,8 @@ export function createRun(seed, character = DEFAULT_CHARACTER) {
     base: { ...BASE_SCORE }, // 各水晶的基礎分，會被行星強化
     bonusSteps: 0,
     bonusShuffles: 0,
+    startSeeds: 0, // 種子袋、蛋籃買來的，每關開始放上盤面
+    startEggs: 0,
     owned: [], // 買過的商品 id，依購買順序
     totalScore: 0,
   };

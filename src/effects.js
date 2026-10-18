@@ -1,6 +1,7 @@
 // 把角色與手上的塔羅牌彙整成一份效果（fx），計分、關卡、商店都讀這份
 import { CHARACTERS } from './characters.js';
 import { tarotById } from './tarot.js';
+import { isMatchable } from './board.js';
 
 export const MAGICIAN_REV_POTENCY = 0.8;
 
@@ -20,6 +21,15 @@ export function buildEffects(run) {
     preview: 0,
     queueRerolls: 0,
     magicianUses: 0,
+    // 特殊方塊
+    startSeeds: run.startSeeds, // 每關開始放幾顆種子
+    startEggs: run.startEggs,
+    growSteps: 3, // 種子幾步後長成花晶，0 代表放下就是花晶
+    flowerMult: 3,
+    eggExtra: 0, // 每次孵化再生幾顆蛋
+    eggSleepChance: 0,
+    towerUses: 0,
+    towerSleep: 0, // 塔逆位：清空後幾顆水晶睡著
   };
   CHARACTERS[run.character].apply(fx);
 
@@ -46,8 +56,8 @@ export function sunExpand(board, groups, mode) {
     const cells = [...g.cells];
     const take = (x, y) => {
       const t = board.get(x, y);
-      const c = { x, y };
-      if (t && t.type === g.type && !claimed.has(key(c))) {
+      const c = { x, y, tile: t };
+      if (isMatchable(t) && t.type === g.type && !claimed.has(key(c))) {
         claimed.add(key(c));
         cells.push(c);
       }
