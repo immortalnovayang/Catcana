@@ -11,7 +11,8 @@ import { MAX_TAROTS, cardLabel, cardSide, tarotById } from './tarot.js';
 import { buildEffects, sunExpand } from './effects.js';
 import { SPECIAL_NAMES, applyLayer, heartSwapPlan, planLayer } from './cascade.js';
 import { KIND_INFO, kindOf, renderCodex, recipeHTML, tileImage } from './codex.js';
-import { sfx } from './audio.js';
+import { getAudioSettings, onAudioSettings, setAudioSettings, sfx } from './audio.js';
+import { music } from './music.js';
 import {
   LEVELS,
   createRun,
@@ -27,7 +28,7 @@ import {
 } from './run.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.9 · 特殊水晶';
+const VERSION = 'v0.10 · 背景音樂';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -245,6 +246,7 @@ function renderPreview() {
 }
 
 function showScreen(name) {
+  music.play(name === 'intro' ? 'title' : name === 'shop' ? 'shop' : currentLevel(run).kind === 'boss' ? 'boss' : 'level');
   $('intro').hidden = name !== 'intro';
   $('play').hidden = name !== 'play';
   $('shop').hidden = name !== 'shop';
@@ -602,6 +604,7 @@ function endLevel(won) {
   // 等最後的得分動畫跑完再跳出結算
   setTimeout(() => {
     $('result').hidden = false;
+    music.duck();
     if (won) sfx.win();
     else sfx.lose();
     if (won && last) view.celebrate();
@@ -880,18 +883,47 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 // 瀏覽器要等第一次互動才允許出聲
-document.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
+document.addEventListener(
+  'pointerdown',
+  () => {
+    sfx.unlock();
+    music.unlock();
+  },
+  { once: true },
+);
 
-function renderMute() {
-  $('btn-mute').innerHTML = icon(sfx.isMuted() ? 'mute' : 'sound');
-  $('btn-mute').setAttribute('aria-label', sfx.isMuted() ? '開啟音效' : '關閉音效');
+// ---------- 音量 ----------
+
+function renderVolume() {
+  const a = getAudioSettings();
+  const silent = a.muted || (a.music === 0 && a.sfx === 0);
+  $('btn-mute').innerHTML = icon(silent ? 'mute' : 'sound');
+  $('btn-mute').setAttribute('aria-label', '音量設定');
+  $('vol-music').value = Math.round(a.music * 100);
+  $('vol-sfx').value = Math.round(a.sfx * 100);
+  $('vol-music-val').textContent = Math.round(a.music * 100);
+  $('vol-sfx-val').textContent = Math.round(a.sfx * 100);
+  $('btn-mute-all').innerHTML = `${icon(a.muted ? 'sound' : 'mute')}<span>${a.muted ? '取消靜音' : '全部靜音'}</span>`;
+  $('volume').classList.toggle('muted', a.muted);
 }
+
 $('btn-mute').addEventListener('click', () => {
-  sfx.setMuted(!sfx.isMuted());
-  renderMute();
+  $('volume').hidden = !$('volume').hidden;
   sfx.click();
 });
-renderMute();
+$('vol-music').addEventListener('input', (e) => setAudioSettings({ music: e.target.value / 100, muted: false }));
+$('vol-sfx').addEventListener('input', (e) => setAudioSettings({ sfx: e.target.value / 100, muted: false }));
+// 放開音效滑桿時響一聲，聽聽看新音量
+$('vol-sfx').addEventListener('change', () => sfx.click());
+$('btn-mute-all').addEventListener('click', () => setAudioSettings({ muted: !getAudioSettings().muted }));
+// 點面板以外的地方就收起來
+document.addEventListener('pointerdown', (e) => {
+  if (!$('volume').hidden && !e.target.closest('#volume, #btn-mute')) $('volume').hidden = true;
+});
+onAudioSettings(renderVolume);
+$('vol-ic-music').innerHTML = icon('music');
+$('vol-ic-sfx').innerHTML = icon('sound');
+renderVolume();
 
 // 靜態圖示
 $('favicon').href = FAVICON;
@@ -900,7 +932,7 @@ $('shop-icon').innerHTML = icon('ball');
 document.querySelectorAll('.locked').forEach((el) => (el.innerHTML = icon('lock')));
 
 // 除錯用：主控台可以用 __game.view、__game.state 查看
-window.__game = { view, state, get run() { return run; } };
+window.__game = { view, state, music, get run() { return run; } };
 
 $('version').textContent = VERSION;
 const seedParam = Number.parseInt(new URLSearchParams(location.search).get('seed'), 10);

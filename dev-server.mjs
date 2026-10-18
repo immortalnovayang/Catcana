@@ -14,6 +14,7 @@ const types = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.json': 'application/json',
+  '.mp3': 'audio/mpeg',
 };
 
 createServer(async (req, res) => {
