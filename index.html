@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1c1430" />
+    <title>貓咪占卜師</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔮</text></svg>" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="top">
+        <h1>貓咪占卜師</h1>
+        <p class="sub">盤面測試版</p>
+      </header>
+
+      <section class="hud" aria-label="狀態">
+        <div class="stat"><span class="label">步數</span><span id="stat-moves" class="value">0</span></div>
+        <div class="stat"><span class="label">消除</span><span id="stat-cleared" class="value">0</span></div>
+        <div class="stat"><span class="label">最高連鎖</span><span id="stat-chain" class="value">0</span></div>
+      </section>
+
+      <div class="board-wrap">
+        <div id="board" class="board" role="application" aria-label="三消盤面"></div>
+      </div>
+
+      <section class="actions">
+        <button id="btn-shuffle" type="button">洗牌（2）</button>
+        <button id="btn-new" type="button" class="ghost">新盤面</button>
+      </section>
+
+      <footer class="foot">
+        <p>滑動水晶，或先點一顆再點旁邊那顆來交換。三顆同色連線就會消除。</p>
+        <p class="meta"><span id="version"></span> · 種子 <span id="seed"></span></p>
+      </footer>
+    </main>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
