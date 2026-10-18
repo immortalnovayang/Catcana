@@ -150,6 +150,19 @@ export class BoardView {
     el.addEventListener('animationend', () => el.remove(), { once: true });
   }
 
+  // 在一組消除的中心位置跳出得分
+  floatScore(cells, text, cls = '') {
+    const cx = cells.reduce((s, c) => s + c.x, 0) / cells.length;
+    const cy = cells.reduce((s, c) => s + c.y, 0) / cells.length;
+    const el = document.createElement('div');
+    el.className = `float-score ${cls}`;
+    el.textContent = text;
+    el.style.left = `${((cx + 0.5) / this.board.size) * 100}%`;
+    el.style.top = `${((cy + 0.5) / this.board.size) * 100}%`;
+    this.el.appendChild(el);
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }
+
   // 把螢幕座標換成格子座標
   cellFromPoint(clientX, clientY) {
     const r = this.el.getBoundingClientRect();

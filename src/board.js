@@ -121,12 +121,14 @@ export class Board {
     const groups = new Map();
     runs.forEach((run, i) => {
       const root = find(i);
-      if (!groups.has(root)) groups.set(root, { type: run.type, cells: new Map(), runs: 0 });
+      if (!groups.has(root)) groups.set(root, { type: run.type, cells: new Map(), runs: 0, longest: 0 });
       const g = groups.get(root);
       g.runs++;
+      g.longest = Math.max(g.longest, run.cells.length);
       for (const c of run.cells) g.cells.set(c.y * this.size + c.x, c);
     });
-    return [...groups.values()].map((g) => ({ type: g.type, cells: [...g.cells.values()], runs: g.runs }));
+    // runs：組成這組的直線數（≥2 代表 L、T、十字）；longest：最長一條直線的長度
+    return [...groups.values()].map((g) => ({ type: g.type, cells: [...g.cells.values()], runs: g.runs, longest: g.longest }));
   }
 
   clear(cells) {
@@ -156,8 +158,8 @@ export class Board {
     return spawns;
   }
 
-  // 找一步可走的交換；沒有就回傳 null
-  findValidMove() {
+  // 所有能消除的交換
+  *validMoves() {
     for (const { x, y } of this.cells()) {
       for (const b of [{ x: x + 1, y }, { x, y: y + 1 }]) {
         if (!this.inBounds(b.x, b.y)) continue;
@@ -165,10 +167,14 @@ export class Board {
         this.swap(a, b);
         const ok = this.#matchesAt(a.x, a.y) || this.#matchesAt(b.x, b.y);
         this.swap(a, b);
-        if (ok) return [a, b];
+        if (ok) yield [a, b];
       }
     }
-    return null;
+  }
+
+  // 找一步可走的交換；沒有就回傳 null
+  findValidMove() {
+    return this.validMoves().next().value ?? null;
   }
 
   hasValidMove() {
