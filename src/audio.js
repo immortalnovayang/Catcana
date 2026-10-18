@@ -11,7 +11,8 @@ const settings = loadSettings();
 const listeners = new Set();
 
 function loadSettings() {
-  const defaults = { music: 0.6, sfx: 0.8, muted: false };
+  // 背景音樂比音效小聲比較舒服（試玩回饋：音樂 20、音效 100）
+  const defaults = { music: 0.2, sfx: 1, muted: false };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
     if (saved) return { ...defaults, ...saved };
