@@ -885,3 +885,181 @@ body.in-menu #hand {
 .shop-rule:empty {
   display: none;
 }
+
+/* ---------- M6：爽感 ---------- */
+
+.float-score.huge {
+  color: #ffe08a;
+  text-shadow: 0 2px 0 #6b3d00, 0 0 16px rgba(255, 211, 110, 0.9);
+}
+
+.ring {
+  position: absolute;
+  width: 20%;
+  aspect-ratio: 1;
+  border: 4px solid;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.2);
+  pointer-events: none;
+  z-index: 1;
+  animation: ring 480ms ease-out forwards;
+}
+
+@keyframes ring {
+  to {
+    transform: translate(-50%, -50%) scale(2.2);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  pointer-events: none;
+  z-index: 3;
+  animation: flash 420ms ease-out forwards;
+}
+
+@keyframes flash {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.confetti {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 6;
+}
+
+#stat-score.bump,
+#stat-gold.bump {
+  display: inline-block;
+  animation: bump 260ms ease-out;
+}
+
+@keyframes bump {
+  40% {
+    transform: scale(1.3);
+    color: var(--accent);
+  }
+}
+
+.top {
+  position: relative;
+  width: 100%;
+}
+
+.mute {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 1.1rem;
+  background: var(--bg-2);
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .flash,
+  .confetti {
+    display: none;
+  }
+}
+
+.run-summary {
+  margin: 4px 0 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.run-summary[hidden] {
+  display: none;
+}
+
+.run-summary h3 {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.sum-result {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.result-card .run-summary dl {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.sum-cards {
+  margin: 8px 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.sum-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+a.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 10px 20px;
+  min-height: 44px;
+}
+
+a.button.ghost {
+  color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--muted);
+}
+
+.sum-actions button,
+.sum-actions a.button {
+  padding: 8px 14px;
+  min-height: 40px;
+  font-size: 0.9rem;
+}
+
+.result {
+  overflow-y: auto;
+}
+
+/* 結算卡片比盤面高時（手機上整局結算）要能捲動，不能被置中切掉上半 */
+.result {
+  place-items: unset;
+}
+
+.result-card {
+  margin: auto;
+}
+
+/* 整局結束時只顯示整局結算，單關數字與獎勵收起來，讓分享與回饋按鈕留在畫面內 */
+.result.run-over .result-card > dl,
+.result.run-over .reward {
+  display: none;
+}
+
+.result.run-over .run-summary {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}

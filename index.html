@@ -12,6 +12,7 @@
     <main class="app">
       <header class="top">
         <h1>貓咪占卜師</h1>
+        <button id="btn-mute" type="button" class="mute"></button>
         <p id="level-label" class="sub"></p>
       </header>
 
@@ -61,6 +62,20 @@
               </dl>
               <ul id="result-reward" class="reward"></ul>
               <p id="result-note" class="result-note"></p>
+              <div id="run-summary" class="run-summary" hidden>
+                <h3>這一局</h3>
+                <p id="sum-result" class="sum-result"></p>
+                <dl>
+                  <div><dt>總分</dt><dd id="sum-total"></dd></div>
+                  <div><dt>最佳一步</dt><dd id="sum-step"></dd></div>
+                  <div><dt>最高連鎖</dt><dd id="sum-chain"></dd></div>
+                </dl>
+                <p id="sum-cards" class="sum-cards"></p>
+                <div class="sum-actions">
+                  <button id="btn-share" type="button" class="ghost">分享成績</button>
+                  <a id="btn-feedback" class="button ghost" target="_blank" rel="noopener">給點回饋</a>
+                </div>
+              </div>
               <div class="result-actions">
                 <button id="btn-result-main" type="button"></button>
               </div>

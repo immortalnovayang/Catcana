@@ -1,4 +1,4 @@
-// M5：角色開場 → 三位客人（小、小、Boss），關卡之間進占卜室抽三選一；塔羅牌改寫計分與規則
+// M6：角色開場 → 三位客人（小、小、Boss），關卡之間進占卜室抽三選一；塔羅牌改寫計分與規則
 import { Board } from './board.js';
 import { createRng, randomSeed } from './rng.js';
 import { scoreLayer } from './scoring.js';
@@ -8,6 +8,7 @@ import { gemSvg } from './gems.js';
 import { CHARACTERS } from './characters.js';
 import { MAX_TAROTS, cardLabel, cardSide, tarotById } from './tarot.js';
 import { buildEffects, sunExpand } from './effects.js';
+import { sfx } from './audio.js';
 import {
   LEVELS,
   createRun,
@@ -23,7 +24,7 @@ import {
 } from './run.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.5 · M5';
+const VERSION = 'v0.6 · M6';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -281,12 +282,14 @@ async function trySwap(a, b) {
   const board = state.board;
 
   board.swap(a, b);
+  sfx.swap();
   await view.sync({ duration: far ? 260 : 150 });
   const groups = board.findMatches();
   if (groups.length === 0) {
     board.swap(a, b);
     await view.sync({ duration: far ? 260 : 150 });
     view.nope(a, b);
+    sfx.nope();
     state.busy = false;
     return;
   }
@@ -307,10 +310,14 @@ async function trySwap(a, b) {
 async function afterStep() {
   const board = state.board;
   const grown = board.tickSeeds(fx.growSteps);
-  if (grown) view.popup(`🌸 ${grown} 朵花晶綻放`, 'note');
+  if (grown) {
+    view.popup(`🌸 ${grown} 朵花晶綻放`, 'note');
+    sfx.bloom();
+  }
   if (currentLevel(run).boss === 'owl' && state.stepsTaken % OWL_EVERY === 0 && state.stepsLeft > 0) {
     board.placeSpecial('sleep', OWL_SLEEPS);
     view.popup('🦉 貓頭鷹讓水晶睡著了', 'note');
+    sfx.sleep();
   }
   if (view.refreshTiles()) await wait(300);
 }
@@ -331,6 +338,9 @@ async function useTower() {
   input.clearSelection();
   updateHud();
   view.popup('🗼 塔崩落了！', 'big');
+  sfx.boom();
+  view.flash();
+  view.shake(3);
   await wait(300);
   await resolve(state.board.allGroups());
   if (fx.towerSleep) {
@@ -353,16 +363,22 @@ async function resolve(groups) {
       groups = sun.groups;
       if (fx.sun === 'board') noChain = true;
       view.popup('☀️ 太陽', 'big');
+      sfx.boom();
+      view.flash();
+      view.shake(2);
     } else if (chain > 1 && !noChain) {
       view.popup(`連鎖 ×${chain}`, chain >= 4 ? 'big' : '');
+      if (chain >= 3) view.shake(Math.min(3, chain - 2));
     }
     const layer = scoreLayer(groups, { chain, step: state.stepsTaken, noChain }, fx);
+    sfx.match(chain, Math.max(...groups.map((g) => g.cells.length)));
     for (const p of layer.parts) {
       const cls = p.groupMul > 1 || p.bonus ? 'bonus' : layer.mult > 1 ? 'chain' : '';
-      view.floatScore(p.group.cells, `+${p.points}`, cls);
+      view.floatScore(p.group.cells, `+${p.points}`, cls, p.points);
     }
     stepTotal += layer.total;
     state.score += layer.total;
+    bump('stat-score');
     updateHud();
     await view.clear(groups, chain);
     for (const g of groups) board.clear(g.cells);
@@ -373,6 +389,8 @@ async function resolve(groups) {
     if (view.refreshTiles()) {
       for (const c of reaction.hatched) view.floatScore([c], '🐣', 'bonus');
       for (const c of reaction.woke) view.floatScore([c], '⏰', 'chain');
+      if (reaction.hatched.length) sfx.hatch();
+      else if (reaction.woke.length) sfx.wake();
     }
     const spawns = board.collapse();
     await view.sync({ spawns, fall: true });
@@ -380,6 +398,8 @@ async function resolve(groups) {
     groups = board.findMatches();
   }
   state.bestChain = Math.max(state.bestChain, chain);
+  run.bestChain = Math.max(run.bestChain, chain);
+  run.bestStep = Math.max(run.bestStep, stepTotal);
   setStepInfo(chain > 1 && !noChain ? `這一步 +${stepTotal}（${chain} 層連鎖）` : `這一步 +${stepTotal}`);
   return stepTotal;
 }
@@ -439,6 +459,7 @@ async function onPick(cell) {
   updateHud();
   const n = state.board.recolor(from, type);
   view.refreshTiles();
+  sfx.magic();
   view.popup(`🎩 ${n} 顆變身`, 'note');
   await wait(450);
   const groups = state.board.findMatches();
@@ -455,7 +476,7 @@ function endLevel(won) {
   const level = currentLevel(run);
   const last = isLastLevel(run);
 
-  $('result-score').textContent = state.score;
+  countUp($('result-score'), state.score);
   $('result-target').textContent = level.target;
   $('result-steps').textContent = state.stepsLeft;
   $('result-chain').textContent = state.bestChain;
@@ -479,26 +500,111 @@ function endLevel(won) {
     }
     if (last) {
       $('result-title').textContent = '🎉 全部占卜成功！';
-      $('result-note').textContent = `這局總分 ${run.totalScore}，帶著 ${run.gold} 金幣通關。`;
+      $('result-note').textContent = `帶著 ${run.gold} 金幣通關。`;
       mainBtn.textContent = '再挑戰一局';
       mainBtn.onclick = () => newRun(randomSeed());
     } else {
       $('result-title').textContent = '占卜成功！';
       $('result-note').textContent = `現在有 ${run.gold} 金幣。`;
       mainBtn.textContent = '前往占卜室';
-      mainBtn.onclick = () => openShop();
+      mainBtn.onclick = () => {
+        sfx.click();
+        openShop();
+      };
     }
   } else {
     $('result-title').textContent = '占卜失敗…';
-    $('result-note').textContent = `差 ${level.target - state.score} 分。這局走到第 ${run.level + 1} 位客人。`;
+    $('result-note').textContent = `差 ${level.target - state.score} 分。`;
     mainBtn.textContent = '重新開始一局';
     mainBtn.onclick = () => newRun(randomSeed());
   }
+  const runOver = !won || last;
+  $('result').classList.toggle('run-over', runOver);
+  renderRunSummary(runOver, won);
   updateHud();
   // 等最後的得分動畫跑完再跳出結算
   setTimeout(() => {
     $('result').hidden = false;
+    if (won) sfx.win();
+    else sfx.lose();
+    if (won && last) view.celebrate();
   }, 500);
+}
+
+// ---------- 整局結算、分享、回饋 ----------
+
+// 回饋送到 GitHub Issues（會先帶入版本、種子與這局結果）。想改用 Google 表單就換掉這個網址
+const FEEDBACK_URL = 'https://github.com/immortalnovayang/Catcana/issues/new';
+
+function runResultText(cleared) {
+  return cleared ? '三位客人全部占卜成功' : `走到第 ${run.level + 1} / ${LEVELS.length} 位客人`;
+}
+
+function renderRunSummary(runOver, won) {
+  const box = $('run-summary');
+  box.hidden = !runOver;
+  if (!runOver) return;
+  const cleared = won && isLastLevel(run);
+  $('sum-result').textContent = runResultText(cleared);
+  countUp($('sum-total'), run.totalScore + (cleared ? 0 : state.score));
+  $('sum-step').textContent = run.bestStep;
+  $('sum-chain').textContent = run.bestChain;
+  $('sum-cards').textContent = run.tarots.length ? run.tarots.map((t) => `${tarotById(t.id).icon}${tarotById(t.id).name}${t.reversed ? '(逆)' : ''}`).join(' ') : '沒有塔羅牌';
+
+  const total = run.totalScore + (cleared ? 0 : state.score);
+  const shareUrl = `${location.origin}${location.pathname}?seed=${run.seed}`;
+  const shareText = `我在《貓咪占卜師》${runResultText(cleared)}，總分 ${total}，最高連鎖 ${run.bestChain}！用同一個種子挑戰我：`;
+  $('btn-share').onclick = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: '貓咪占卜師', text: shareText, url: shareUrl });
+      else {
+        await navigator.clipboard.writeText(`${shareText}${shareUrl}`);
+        flashButton($('btn-share'), '已複製！');
+      }
+    } catch {
+      // 使用者取消分享，或瀏覽器不給剪貼簿權限
+    }
+  };
+
+  const body = [
+    `版本：${VERSION}`,
+    `種子：${run.seed}`,
+    `結果：${runResultText(cleared)}，總分 ${total}`,
+    `手牌：${run.tarots.map(cardLabel).join('、') || '無'}`,
+    '',
+    '好玩的地方：',
+    '',
+    '卡住或看不懂的地方：',
+    '',
+    '其他想說的：',
+  ].join('\n');
+  const title = `試玩回饋（${VERSION}）`;
+  $('btn-feedback').href = `${FEEDBACK_URL}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+}
+
+function flashButton(btn, text) {
+  const old = btn.textContent;
+  btn.textContent = text;
+  setTimeout(() => (btn.textContent = old), 1600);
+}
+
+// 數字從 0 跳到目標值
+function countUp(el, to, ms = 700) {
+  const start = performance.now();
+  const tick = (now) => {
+    const t = Math.min(1, (now - start) / ms);
+    el.textContent = Math.round(to * (1 - (1 - t) ** 3));
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  el.textContent = 0;
+}
+
+function bump(id) {
+  const el = $(id);
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
 }
 
 function openShop() {
@@ -538,6 +644,8 @@ function renderShop() {
       btn.disabled = !canBuy(run, visit, item, fx);
       btn.onclick = () => {
         if (buy(run, visit, item, fx)) {
+          sfx.coin();
+          bump('stat-gold');
           fx = buildEffects(run);
           renderShop();
           updateHud();
@@ -561,6 +669,7 @@ $('btn-start').addEventListener('click', () => startLevel());
 
 $('btn-reroll').addEventListener('click', () => {
   if (reroll(run, visit)) {
+    sfx.click();
     renderShop();
     updateHud();
   }
@@ -595,6 +704,20 @@ $('btn-restart').addEventListener('click', () => {
   if (state.busy) return;
   if (confirm('放棄這局，從頭重新開始？')) newRun(randomSeed());
 });
+
+// 瀏覽器要等第一次互動才允許出聲
+document.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
+
+function renderMute() {
+  $('btn-mute').textContent = sfx.isMuted() ? '🔇' : '🔊';
+  $('btn-mute').setAttribute('aria-label', sfx.isMuted() ? '開啟音效' : '關閉音效');
+}
+$('btn-mute').addEventListener('click', () => {
+  sfx.setMuted(!sfx.isMuted());
+  renderMute();
+  sfx.click();
+});
+renderMute();
 
 $('version').textContent = VERSION;
 const seedParam = Number.parseInt(new URLSearchParams(location.search).get('seed'), 10);

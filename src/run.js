@@ -37,7 +37,9 @@ export function createRun(seed, character = DEFAULT_CHARACTER) {
     startSeeds: 0, // 種子袋、蛋籃買來的，每關開始放上盤面
     startEggs: 0,
     owned: [], // 買過的商品 id，依購買順序
-    totalScore: 0,
+    totalScore: 0, // 已過關卡的分數加總
+    bestChain: 0,
+    bestStep: 0, // 單一步拿到的最高分
   };
 }
 
