@@ -15,14 +15,29 @@ export function groupBonus(group) {
   return bonus;
 }
 
-// 一層消除的得分。chain 從 1 開始，倍率 = chain（連鎖每多一層 +1）
-// baseTable 是這局目前的水晶基礎分（行星會強化）
-export function scoreLayer(groups, chain, baseTable = BASE_SCORE) {
-  const mult = chain;
+// fx 是塔羅牌與角色彙整出的效果（見 effects.js）；沒有任何效果時用這份
+export const PLAIN_FX = { baseTable: BASE_SCORE, layerMods: [], groupMods: [] };
+
+// 一層消除的得分。ctx = { chain, step, noChain }
+// 層倍率 = (連鎖層數 + Σ加倍率) × Π乘倍率；連鎖層數從 1 開始，noChain 時固定為 1
+// 每組得分 = (基礎分 + 加值) × 該組的乘數 × 層倍率
+export function scoreLayer(groups, ctx, fx = PLAIN_FX) {
+  let add = 0;
+  let mul = 1;
+  for (const mod of fx.layerMods) {
+    const r = mod(groups, ctx);
+    if (r) {
+      add += r.add ?? 0;
+      mul *= r.mul ?? 1;
+    }
+  }
+  const mult = Math.max(0, ((ctx.noChain ? 1 : ctx.chain) + add) * mul);
   const parts = groups.map((g) => {
-    const base = g.cells.length * baseTable[g.type];
+    const base = g.cells.length * fx.baseTable[g.type];
     const bonus = groupBonus(g);
-    return { group: g, base, bonus, points: (base + bonus) * mult };
+    let groupMul = 1;
+    for (const mod of fx.groupMods) groupMul *= mod(g, ctx) ?? 1;
+    return { group: g, base, bonus, groupMul, points: Math.max(0, Math.round((base + bonus) * groupMul * mult)) };
   });
   return { mult, parts, total: parts.reduce((s, p) => s + p.points, 0) };
 }

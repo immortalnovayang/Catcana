@@ -22,13 +22,30 @@ export class BoardView {
 
   #createEl(tile) {
     const el = document.createElement('div');
-    el.className = `tile t-${tile.type}`;
-    el.innerHTML = `<div class="gem">${gemSvg(tile.type)}</div>`;
-    el.title = CRYSTAL_INFO[tile.type].name;
+    el.innerHTML = '<div class="gem"></div>';
+    this.#paint(el, tile.type);
     el.style.setProperty('--delay', `${(-Math.random() * 3).toFixed(2)}s`);
     this.el.appendChild(el);
     this.els.set(tile.id, el);
     return el;
+  }
+
+  #paint(el, type) {
+    el.className = `tile t-${type}`;
+    el.dataset.type = type;
+    el.firstElementChild.innerHTML = gemSvg(type);
+    el.title = CRYSTAL_INFO[type].name;
+  }
+
+  // 魔術師把水晶變色後，重畫變了種類的方塊
+  refreshTypes() {
+    for (const { tile } of this.board.cells()) {
+      const el = this.els.get(tile.id);
+      if (el && el.dataset.type !== tile.type) {
+        this.#paint(el, tile.type);
+        this.#bounce(el, 'hint');
+      }
+    }
   }
 
   #place(el, x, y, ms) {
@@ -95,6 +112,11 @@ export class BoardView {
     if (cell) this.tileAt(cell.x, cell.y)?.classList.add('selected');
   }
 
+  // 標出某一種水晶（魔術師選色時用），傳 null 取消
+  highlightType(type) {
+    for (const el of this.els.values()) el.classList.toggle('picked', type !== null && el.dataset.type === type);
+  }
+
   nope(a, b) {
     this.#bounce(this.tileAt(a.x, a.y), 'nope');
     this.#bounce(this.tileAt(b.x, b.y), 'nope');
@@ -109,7 +131,8 @@ export class BoardView {
     for (const g of groups) {
       for (const c of g.cells) {
         const tile = this.board.get(c.x, c.y);
-        const el = this.els.get(tile.id);
+        const el = tile && this.els.get(tile.id);
+        if (!el) continue;
         el.firstElementChild.classList.add('clearing');
         this.#burst(c, CRYSTAL_INFO[tile.type].color, chain);
         this.els.delete(tile.id);

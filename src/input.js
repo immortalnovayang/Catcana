@@ -1,7 +1,9 @@
 // 交換操作：滑動（手機、滑鼠拖曳都可以），或先點一顆再點相鄰的一顆
+// canFarSwap()：寶劍騎士生效時，點兩下可以交換不相鄰的兩顆
+// isPicking() / onPick(cell)：魔術師選水晶時，點擊直接交給 onPick
 import { Board } from './board.js';
 
-export function bindInput(view, { canAct, onSwap }) {
+export function bindInput(view, { canAct, onSwap, canFarSwap = () => false, isPicking = () => false, onPick = () => {} }) {
   const el = view.el;
   let start = null; // { cell, cx, cy, pointerId }
   let selected = null;
@@ -15,7 +17,12 @@ export function bindInput(view, { canAct, onSwap }) {
     if (!canAct() || start) return;
     const cell = view.cellFromPoint(e.clientX, e.clientY);
     if (!cell) return;
-    start = { cell, cx: e.clientX, cy: e.clientY, pointerId: e.pointerId };
+    if (isPicking()) {
+      e.preventDefault();
+      onPick(cell);
+      return;
+    }
+    start ={ cell, cx: e.clientX, cy: e.clientY, pointerId: e.pointerId };
     el.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
@@ -37,11 +44,12 @@ export function bindInput(view, { canAct, onSwap }) {
     const cell = start.cell;
     start = null;
     if (e.type === 'pointercancel') return;
-    if (selected && Board.adjacent(selected, cell)) {
+    const same = selected && selected.x === cell.x && selected.y === cell.y;
+    if (selected && !same && (Board.adjacent(selected, cell) || canFarSwap())) {
       const from = selected;
       setSelected(null);
       onSwap(from, cell);
-    } else if (selected && selected.x === cell.x && selected.y === cell.y) {
+    } else if (same) {
       setSelected(null);
     } else {
       setSelected(cell);

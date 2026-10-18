@@ -25,8 +25,28 @@
         <div class="stat"><span class="label">金幣</span><span id="stat-gold" class="value gold">0</span></div>
       </section>
 
+      <div id="hand" class="hand" aria-label="手牌"></div>
+      <p id="card-detail" class="card-detail" hidden></p>
+
+      <section id="intro" class="intro" hidden aria-label="角色">
+        <div class="intro-card">
+          <div id="intro-icon" class="intro-icon"></div>
+          <h2 id="intro-name"></h2>
+          <p id="intro-text" class="intro-text"></p>
+          <dl>
+            <dt>被動能力</dt>
+            <dd id="intro-passive"></dd>
+            <dt>起始塔羅</dt>
+            <dd id="intro-card"></dd>
+          </dl>
+          <button id="btn-start" type="button">開始占卜</button>
+        </div>
+        <p class="intro-more">其他星座貓咪之後加入。</p>
+      </section>
+
       <section id="play" class="play">
         <p id="step-info" class="step-info"></p>
+        <div id="preview" class="preview" hidden></div>
 
         <div class="board-wrap">
           <div id="board" class="board" role="application" aria-label="三消盤面"></div>
@@ -49,6 +69,8 @@
         </div>
 
         <section class="actions">
+          <button id="btn-magic" type="button" class="card-btn" hidden></button>
+          <button id="btn-requeue" type="button" class="card-btn" hidden></button>
           <button id="btn-shuffle" type="button">洗牌（2）</button>
           <button id="btn-restart" type="button" class="ghost">重新開始</button>
         </section>
@@ -62,7 +84,9 @@
           <button id="btn-reroll" type="button" class="ghost"></button>
           <button id="btn-leave" type="button">迎接下一位客人</button>
         </div>
-        <p class="shop-hint">利息：每存 5 金，過關時多拿 1 金（最多 5 金）。</p>
+        <h3 class="shop-hand-title">手牌</h3>
+        <div id="shop-hand" class="hand"></div>
+        <p id="shop-hint" class="shop-hint"></p>
       </section>
 
       <p id="perks" class="perks"></p>
@@ -71,6 +95,7 @@
         <p>滑動水晶，或先點一顆再點旁邊那顆來交換。三顆同色連線就會消除。</p>
         <p>得分 =（水晶分數 + 形狀加值）× 連鎖倍率。4 連、5 連、L / T 形有加值，連鎖越多層倍率越高。</p>
         <p>一局三位客人，過關拿金幣，在占卜室換強化。剩餘步數會換成金幣。</p>
+        <p>塔羅牌最多 5 張，點一下可以看效果。逆位比較強，但有代價。</p>
         <p class="meta"><span id="version"></span> · 種子 <span id="seed"></span></p>
       </footer>
     </main>

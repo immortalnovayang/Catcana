@@ -7,10 +7,13 @@ export function makeTile(type) {
 }
 
 export class Board {
-  constructor(rng, size = 8, types = CRYSTALS) {
+  // weights：各水晶的出現權重（星星牌會調整），沒給就平均
+  constructor(rng, { size = 8, types = CRYSTALS, weights = null } = {}) {
     this.rng = rng;
     this.size = size;
     this.types = types;
+    this.weights = weights;
+    this.queue = []; // 接下來要掉落的水晶，命運之輪可以預覽
     this.grid = this.#generate();
   }
 
@@ -29,7 +32,42 @@ export class Board {
   }
 
   #randomType() {
-    return this.types[this.rng.int(this.types.length)];
+    if (!this.weights) return this.types[this.rng.int(this.types.length)];
+    const total = this.types.reduce((s, t) => s + (this.weights[t] ?? 1), 0);
+    let r = this.rng() * total;
+    for (const t of this.types) {
+      r -= this.weights[t] ?? 1;
+      if (r < 0) return t;
+    }
+    return this.types[this.types.length - 1];
+  }
+
+  // 掉落順序：collapse 從左到右、每一欄由下往上補，依序取用
+  nextType() {
+    return this.queue.length ? this.queue.shift() : this.#randomType();
+  }
+
+  peekQueue(n) {
+    while (this.queue.length < n) this.queue.push(this.#randomType());
+    return this.queue.slice(0, n);
+  }
+
+  rerollQueue() {
+    const n = this.queue.length;
+    this.queue = [];
+    this.peekQueue(n);
+  }
+
+  // 魔術師：把某一種水晶全部變成另一種，回傳變了幾顆
+  recolor(from, to) {
+    let n = 0;
+    for (const { tile } of this.cells()) {
+      if (tile.type === from) {
+        tile.type = to;
+        n++;
+      }
+    }
+    return n;
   }
 
   // 開局盤面：不能一開始就有三連，而且至少要有一步可走
@@ -150,7 +188,7 @@ export class Board {
       }
       const missing = write + 1;
       for (let y = write; y >= 0; y--) {
-        const tile = makeTile(this.#randomType());
+        const tile = makeTile(this.nextType());
         this.grid[y][x] = tile;
         spawns.push({ tile, x, fromY: y - missing });
       }

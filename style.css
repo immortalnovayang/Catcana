@@ -86,7 +86,7 @@ body {
 
 .board-wrap {
   position: relative;
-  width: min(100%, 480px, calc(100dvh - 290px));
+  width: min(100%, 480px, calc(100dvh - 350px));
   min-width: 260px;
 }
 
@@ -449,12 +449,12 @@ body {
   color: var(--accent);
 }
 
-body.in-shop #score-card,
-body.in-shop #steps-card {
+body.in-menu #score-card,
+body.in-menu #steps-card {
   display: none;
 }
 
-body.in-shop .hud {
+body.in-menu .hud {
   grid-template-columns: 1fr;
 }
 
@@ -628,4 +628,225 @@ button:disabled {
   .gem svg {
     animation: none;
   }
+}
+
+/* ---------- M4：手牌、預覽、角色、塔羅 ---------- */
+
+.play[hidden],
+.intro[hidden] {
+  display: none;
+}
+
+body.in-menu #hand {
+  display: none;
+}
+
+.hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 211, 110, 0.35);
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip small {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: #b4324a;
+  color: #fff;
+  font-size: 0.65rem;
+}
+
+.chip.rev {
+  box-shadow: inset 0 0 0 1.5px rgba(255, 110, 140, 0.6);
+}
+
+.chip.rev .chip-icon {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+
+.chip.character {
+  background: #4a2a35;
+  box-shadow: inset 0 0 0 1.5px rgba(229, 72, 77, 0.6);
+}
+
+.chip.empty {
+  opacity: 0.35;
+  cursor: default;
+  border: 1.5px dashed rgba(255, 255, 255, 0.3);
+  background: transparent;
+}
+
+.chip-discard {
+  min-height: 0;
+  padding: 0 6px;
+  margin-left: 2px;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  background: #b4324a;
+  color: #fff;
+}
+
+.card-detail {
+  margin: -4px 0 0;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.85rem;
+  text-align: center;
+  animation: fade-in 150ms ease;
+}
+
+.card-detail[hidden] {
+  display: none;
+}
+
+.preview {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: -6px;
+}
+
+.preview[hidden] {
+  display: none;
+}
+
+.preview-label {
+  margin-right: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.preview-gem {
+  width: 22px;
+  height: 22px;
+}
+
+.preview-gem svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.card-btn {
+  background: #9b5de5;
+  color: #fff;
+}
+
+.actions {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tile.picked .gem {
+  transform: scale(1.12);
+  filter: drop-shadow(0 0 6px #fff) brightness(1.2);
+}
+
+.offer {
+  position: relative;
+}
+
+.offer.tarot {
+  box-shadow: inset 0 0 0 2px rgba(255, 211, 110, 0.7);
+}
+
+.offer.tarot.rev {
+  box-shadow: inset 0 0 0 2px rgba(255, 110, 140, 0.8);
+}
+
+.offer.rev .offer-icon {
+  transform: rotate(180deg);
+}
+
+.offer-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  background: rgba(255, 211, 110, 0.2);
+  color: var(--accent);
+}
+
+.offer.rev .offer-badge {
+  background: #b4324a;
+  color: #fff;
+}
+
+.shop-hand-title {
+  margin: 4px 0 8px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.shop .hand {
+  margin-bottom: 12px;
+}
+
+.intro {
+  width: 100%;
+  text-align: center;
+}
+
+.intro-card {
+  margin: 8px auto 0;
+  max-width: 340px;
+  padding: 20px 18px;
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #4a2a35, var(--bg-2));
+  box-shadow: inset 0 0 0 2px rgba(229, 72, 77, 0.5), 0 12px 30px rgba(0, 0, 0, 0.35);
+}
+
+.intro-icon {
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.intro-card h2 {
+  margin: 8px 0 4px;
+  font-size: 1.25rem;
+}
+
+.intro-text {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.intro-card dl {
+  margin: 0 0 16px;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.intro-card dt {
+  color: var(--accent);
+  font-size: 0.75rem;
+  margin-top: 8px;
+}
+
+.intro-card dd {
+  margin: 2px 0 0;
+}
+
+.intro-more {
+  color: var(--muted);
+  font-size: 0.8rem;
 }
