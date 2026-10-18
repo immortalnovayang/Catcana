@@ -126,6 +126,23 @@ export const sfx = {
     tone({ freq: 1319, dur: 0.18, type: 'square', gain: 0.04, delay: 0.07 });
   },
   click: () => tone({ freq: 900, dur: 0.03, type: 'triangle', gain: 0.03 }),
+  // 生出特殊水晶：往上爬的亮晶晶琶音
+  create: () => [0, 4, 7, 12, 16].forEach((s, i) => tone({ freq: 659 * 2 ** (s / 12), dur: 0.18, type: 'triangle', gain: 0.06, delay: i * 0.045 })),
+  // 引爆：流星是咻一聲、滿月是悶響、星辰之心是爆炸加魔法音
+  blast(kind) {
+    if (kind === 'meteor') {
+      noise({ dur: 0.35, gain: 0.18, freq: 4000 });
+      tone({ freq: 1400, to: 300, dur: 0.3, type: 'sawtooth', gain: 0.04 });
+      vibrate(25);
+    } else if (kind === 'moon') {
+      noise({ dur: 0.4, gain: 0.28, freq: 900 });
+      tone({ freq: 180, to: 60, dur: 0.35, type: 'sine', gain: 0.3 });
+      vibrate([30, 20, 30]);
+    } else {
+      sfx.boom();
+      sfx.magic();
+    }
+  },
   win() {
     [0, 4, 7, 12].forEach((s, i) => tone({ freq: 523 * 2 ** (s / 12), dur: 0.35, type: 'triangle', gain: 0.1, delay: i * 0.11 }));
     vibrate([30, 40, 30]);

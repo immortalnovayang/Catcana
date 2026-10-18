@@ -1,6 +1,6 @@
 // 遊戲流程：角色開場 → 三位客人（小、小、Boss），關卡之間進占卜室抽三選一；塔羅牌改寫計分與規則
 // 盤面由 board-canvas.js 用 Canvas 繪製，這裡管流程與 DOM 介面
-import { Board } from './board.js';
+import { Board, isHeart } from './board.js';
 import { createRng, randomSeed } from './rng.js';
 import { scoreLayer } from './scoring.js';
 import { BoardView } from './board-canvas.js';
@@ -9,6 +9,8 @@ import { icon, catPortrait, FAVICON } from './icons.js';
 import { CHARACTERS } from './characters.js';
 import { MAX_TAROTS, cardLabel, cardSide, tarotById } from './tarot.js';
 import { buildEffects, sunExpand } from './effects.js';
+import { SPECIAL_NAMES, applyLayer, heartSwapPlan, planLayer } from './cascade.js';
+import { KIND_INFO, kindOf, renderCodex, recipeHTML, tileImage } from './codex.js';
 import { sfx } from './audio.js';
 import {
   LEVELS,
@@ -25,7 +27,7 @@ import {
 } from './run.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.8 · 視覺升級';
+const VERSION = 'v0.9 · 特殊水晶';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -311,6 +313,8 @@ function startLevel() {
   renderPreview();
   updateHud();
   scheduleHint();
+  noteNewKinds();
+  setTimeout(showNextIntro, 900);
   if (currentLevel(run).kind === 'boss') {
     setTimeout(() => {
       view.popup(`Boss：${currentLevel(run).name}`, 'big');
@@ -323,13 +327,24 @@ async function trySwap(a, b) {
   if (state.busy || state.over) return;
   const far = !Board.adjacent(a, b);
   if (far && !canFarSwap()) return;
+  const board = state.board;
+  const heartSwap = isHeart(board.get(a.x, a.y)) || isHeart(board.get(b.x, b.y));
+  const eggInvolved = board.get(a.x, a.y).type === 'egg' || board.get(b.x, b.y).type === 'egg';
   state.busy = true;
   input.clearSelection();
-  const board = state.board;
 
   board.swap(a, b);
   sfx.swap();
   await view.sync({ duration: far ? 260 : 150 });
+  if (heartSwap && !eggInvolved) {
+    state.stepsTaken++;
+    state.stepsLeft--;
+    updateHud();
+    await resolve([], { first: heartSwapPlan(board, a, b) });
+    await afterStep();
+    await afterResolve();
+    return;
+  }
   const groups = board.findMatches();
   if (groups.length === 0) {
     board.swap(a, b);
@@ -347,7 +362,7 @@ async function trySwap(a, b) {
     view.popup(`寶劍騎士 −${KNIGHT_COST}`, 'note');
   }
   updateHud();
-  await resolve(groups);
+  await resolve(groups, { swapCells: [a, b] });
   await afterStep();
   await afterResolve();
 }
@@ -366,6 +381,7 @@ async function afterStep() {
     sfx.sleep();
   }
   if (view.refreshTiles()) await wait(300);
+  noteNewKinds();
 }
 
 // 關卡開始時放上種子與蛋
@@ -397,53 +413,63 @@ async function useTower() {
   await afterResolve();
 }
 
-// 消除 → 掉落 → 再找配對，直到盤面穩定。回傳這一步的總分
-async function resolve(groups) {
+// 消除 → 引爆 → 掉落 → 再找配對，直到盤面穩定。回傳這一步的總分
+// swapCells：玩家剛交換的兩格（特殊水晶優先生在這裡）；first：第一層已經算好的計畫（星辰之心交換）
+async function resolve(groups, { swapCells = [], first = null } = {}) {
   const board = state.board;
+  const reactOpts = { eggExtra: fx.eggExtra, eggSleepChance: fx.eggSleepChance, flower: fx.growSteps <= 0 };
   let chain = 0;
   let stepTotal = 0;
   let noChain = false;
-  while (groups.length) {
+  while (first || groups.length) {
     chain++;
-    const sun = sunExpand(board, groups, fx.sun);
-    if (sun.triggered) {
-      groups = sun.groups;
-      if (fx.sun === 'board') noChain = true;
-      view.popup('太陽', 'big');
-      view.burstRays(1, 1.4);
-      sfx.boom();
-      view.flash(0.6);
-      view.shake(0.8);
-    } else if (chain > 1 && !noChain) {
-      view.popup(`連鎖 ×${chain}`, chain >= 4 ? 'big' : '');
-      if (chain >= 5) sfx.boom();
+    let plan = first;
+    first = null;
+    if (!plan) {
+      const sun = sunExpand(board, groups, fx.sun);
+      if (sun.triggered) {
+        groups = sun.groups;
+        if (fx.sun === 'board') noChain = true;
+        view.popup('太陽', 'big');
+        view.burstRays(1, 1.4);
+        sfx.boom();
+        view.flash(0.6);
+        view.shake(0.8);
+      } else if (chain > 1 && !noChain) {
+        view.popup(`連鎖 ×${chain}`, chain >= 4 ? 'big' : '');
+        if (chain >= 5) sfx.boom();
+      }
+      plan = planLayer(board, groups, chain === 1 ? swapCells : []);
     }
-    const layer = scoreLayer(groups, { chain, step: state.stepsTaken, noChain }, fx);
-    sfx.match(chain, Math.max(...groups.map((g) => g.cells.length)));
+    const layer = scoreLayer(plan.scoreGroups, { chain, step: state.stepsTaken, noChain }, fx);
+    sfx.match(chain, Math.max(1, ...plan.viewGroups.map((g) => g.cells.length)));
+    if (plan.detonations.length) {
+      view.detonate(plan.detonations);
+      for (const kind of new Set(plan.detonations.map((d) => d.kind))) sfx.blast(kind);
+    }
     for (const p of layer.parts) {
-      if (p.points <= 0) continue;
-      const cls = p.groupMul > 1 || p.bonus ? 'bonus' : layer.mult > 1 ? 'chain' : '';
+      if (p.points <= 0 || !p.group.cells.length) continue;
+      const cls = p.group.blast || p.groupMul > 1 || p.bonus ? 'bonus' : layer.mult > 1 ? 'chain' : '';
       view.floatScore(p.group.cells, `+${p.points}`, cls, p.points);
     }
     stepTotal += layer.total;
     state.score += layer.total;
     bump('stat-score');
     updateHud();
-    await view.clear(groups, chain);
-    for (const g of groups) board.clear(g.cells);
-    const reaction = board.react(
-      groups.flatMap((g) => g.cells),
-      { eggExtra: fx.eggExtra, eggSleepChance: fx.eggSleepChance, flower: fx.growSteps <= 0 },
-    );
+    await view.clear(plan.viewGroups, chain);
+    const reaction = applyLayer(board, plan, reactOpts);
     if (view.refreshTiles()) {
       for (const c of reaction.hatched) view.floatScore([c], '孵化', 'bonus');
       for (const c of reaction.woke) view.floatScore([c], '醒來', 'chain');
-      if (reaction.hatched.length) sfx.hatch();
+      for (const c of plan.creations) view.floatScore([c], SPECIAL_NAMES[c.kind], 'bonus');
+      if (plan.creations.length) sfx.create();
+      else if (reaction.hatched.length) sfx.hatch();
       else if (reaction.woke.length) sfx.wake();
     }
     const spawns = board.collapse();
     await view.sync({ spawns, fall: true });
     if (fx.preview) renderPreview();
+    noteNewKinds();
     groups = board.findMatches();
   }
   state.bestChain = Math.max(state.bestChain, chain);
@@ -468,6 +494,7 @@ async function afterResolve() {
   if (canFarSwap()) showLevelHint();
   updateHud();
   scheduleHint();
+  showNextIntro();
 }
 
 async function shuffleBoard() {
@@ -493,7 +520,7 @@ function toggleMagic() {
 
 async function onPick(cell) {
   const type = state.board.get(cell.x, cell.y).type;
-  if (type === 'egg') return;
+  if (type === 'egg' || type === 'heart') return;
   if (!state.pick.from) {
     state.pick.from = type;
     view.highlightType(type);
@@ -725,6 +752,7 @@ function perksText() {
 // ---------- 規則說明 ----------
 
 function openHelp() {
+  renderCodex($('codex'));
   $('help-perks').textContent = run ? perksText() : '';
   $('help').hidden = false;
 }
@@ -732,6 +760,56 @@ function openHelp() {
 function closeHelp() {
   $('help').hidden = true;
 }
+
+// ---------- 新方塊介紹：某種方塊第一次出現在盤面上時跳出說明卡 ----------
+
+const SEEN_KEY = 'catcana-seen-kinds';
+const seenKinds = loadSeen();
+const introQueue = [];
+
+function loadSeen() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) ?? '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSeen() {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify([...seenKinds]));
+  } catch {
+    // 無法儲存時，下次開遊戲會再介紹一次，不影響遊玩
+  }
+}
+
+function noteNewKinds() {
+  if (!state.board) return;
+  for (const { tile } of state.board.cells()) {
+    const kind = kindOf(tile);
+    if (kind && !seenKinds.has(kind) && !introQueue.includes(kind)) introQueue.push(kind);
+  }
+}
+
+function showNextIntro() {
+  if (!introQueue.length || !$('newkind').hidden || state.busy || screen() !== 'play' || !$('result').hidden) return;
+  const kind = introQueue.shift();
+  seenKinds.add(kind);
+  saveSeen();
+  const info = KIND_INFO[kind];
+  $('newkind-img').src = tileImage(info.tile, 160);
+  $('newkind-name').textContent = info.name;
+  $('newkind-how').textContent = info.how ?? '';
+  $('newkind-desc').textContent = info.desc;
+  $('newkind-recipe').innerHTML = recipeHTML(kind);
+  $('newkind').hidden = false;
+  sfx.create();
+}
+
+$('btn-newkind').addEventListener('click', () => {
+  $('newkind').hidden = true;
+  showNextIntro();
+});
 
 // ---------- 按鈕 ----------
 
@@ -819,14 +897,6 @@ renderMute();
 $('favicon').href = FAVICON;
 $('gold-icon').innerHTML = icon('coin');
 $('shop-icon').innerHTML = icon('ball');
-for (const [id, name] of [
-  ['help-ic-sprout', 'sprout'],
-  ['help-ic-flower', 'flower'],
-  ['help-ic-egg', 'egg'],
-  ['help-ic-moon', 'moon'],
-]) {
-  $(id).innerHTML = icon(name);
-}
 document.querySelectorAll('.locked').forEach((el) => (el.innerHTML = icon('lock')));
 
 // 除錯用：主控台可以用 __game.view、__game.state 查看

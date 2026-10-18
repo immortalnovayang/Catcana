@@ -1,9 +1,14 @@
 // 盤面邏輯：不碰 DOM，只處理格子資料，方便單獨測試
 export const CRYSTALS = ['fire', 'water', 'wind', 'earth', 'star'];
 
-// 蛋與沉睡水晶不能拿來配對
+// 蛋、星辰之心與沉睡水晶不能拿來配對
 export function isMatchable(tile) {
-  return tile != null && tile.type !== 'egg' && tile.special !== 'sleep';
+  return tile != null && tile.type !== 'egg' && tile.type !== 'heart' && tile.special !== 'sleep';
+}
+
+// 星辰之心：沒有顏色，跟相鄰的水晶交換就引爆（蛋除外）
+export function isHeart(tile) {
+  return tile != null && tile.type === 'heart';
 }
 
 let nextId = 1;
@@ -145,7 +150,7 @@ export class Board {
         const type = this.#matchType(x, y);
         let len = 1;
         while (type && this.#sameType(x + len, y, type)) len++;
-        if (type && len >= 3) runs.push({ type, cells: Array.from({ length: len }, (_, i) => this.#cell(x + i, y)) });
+        if (type && len >= 3) runs.push({ type, dir: 'h', cells: Array.from({ length: len }, (_, i) => this.#cell(x + i, y)) });
         x += len;
       }
     }
@@ -154,7 +159,7 @@ export class Board {
         const type = this.#matchType(x, y);
         let len = 1;
         while (type && this.#sameType(x, y + len, type)) len++;
-        if (type && len >= 3) runs.push({ type, cells: Array.from({ length: len }, (_, i) => this.#cell(x, y + i)) });
+        if (type && len >= 3) runs.push({ type, dir: 'v', cells: Array.from({ length: len }, (_, i) => this.#cell(x, y + i)) });
         y += len;
       }
     }
@@ -174,14 +179,25 @@ export class Board {
     const groups = new Map();
     runs.forEach((run, i) => {
       const root = find(i);
-      if (!groups.has(root)) groups.set(root, { type: run.type, cells: new Map(), runs: 0, longest: 0 });
+      if (!groups.has(root)) groups.set(root, { type: run.type, cells: new Map(), hits: new Map(), runs: 0, longest: 0, dir: run.dir });
       const g = groups.get(root);
       g.runs++;
-      g.longest = Math.max(g.longest, run.cells.length);
-      for (const c of run.cells) g.cells.set(c.y * this.size + c.x, c);
+      if (run.cells.length > g.longest) {
+        g.longest = run.cells.length;
+        g.dir = run.dir;
+      }
+      for (const c of run.cells) {
+        const key = c.y * this.size + c.x;
+        g.cells.set(key, c);
+        g.hits.set(key, (g.hits.get(key) ?? 0) + 1);
+      }
     });
     // runs：組成這組的直線數（≥2 代表 L、T、十字）；longest：最長一條直線的長度
-    return [...groups.values()].map((g) => ({ type: g.type, cells: [...g.cells.values()], runs: g.runs, longest: g.longest }));
+    // dir：最長那條是橫（h）還是直（v）；pivot：兩條直線的交叉格（L、T 形才有）
+    return [...groups.values()].map((g) => {
+      const pivotKey = [...g.hits].find(([, n]) => n >= 2)?.[0];
+      return { type: g.type, cells: [...g.cells.values()], runs: g.runs, longest: g.longest, dir: g.dir, pivot: pivotKey === undefined ? null : g.cells.get(pivotKey) };
+    });
   }
 
   clear(cells) {
@@ -213,27 +229,32 @@ export class Board {
 
   // 消除之後（格子已清空、還沒掉落），處理旁邊的沉睡水晶與蛋
   // eggExtra：每次孵化再生幾顆蛋；eggSleepChance：生出的那顆改成沉睡水晶的機率
-  react(cells, { eggExtra = 0, eggSleepChance = 0, flower = false } = {}) {
+  react(cells, opts = {}) {
+    const near = [];
+    for (const { x, y } of cells) for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) near.push({ x: nx, y: ny });
+    return this.wakeOrHatch(near, opts);
+  }
+
+  // 對指定格子：沉睡的叫醒、蛋孵化成種子（逆位聖杯侍者會再生蛋或沉睡水晶）
+  wakeOrHatch(cells, { eggExtra = 0, eggSleepChance = 0, flower = false } = {}) {
     const woke = [];
     const hatched = [];
     let newEggs = 0;
     let newSleeps = 0;
     for (const { x, y } of cells) {
-      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-        const t = this.get(nx, ny);
-        if (!t) continue;
-        if (t.special === 'sleep') {
-          t.special = null;
-          woke.push({ x: nx, y: ny });
-        } else if (t.type === 'egg') {
-          t.type = this.#randomType();
-          t.special = flower ? 'flower' : 'seed';
-          t.age = 0;
-          hatched.push({ x: nx, y: ny });
-          for (let k = 0; k < eggExtra; k++) {
-            if (this.rng() < eggSleepChance) newSleeps++;
-            else newEggs++;
-          }
+      const t = this.get(x, y);
+      if (!t) continue;
+      if (t.special === 'sleep') {
+        t.special = null;
+        woke.push({ x, y });
+      } else if (t.type === 'egg') {
+        t.type = this.#randomType();
+        t.special = flower ? 'flower' : 'seed';
+        t.age = 0;
+        hatched.push({ x, y });
+        for (let k = 0; k < eggExtra; k++) {
+          if (this.rng() < eggSleepChance) newSleeps++;
+          else newEggs++;
         }
       }
     }
@@ -295,6 +316,12 @@ export class Board {
       for (const b of [{ x: x + 1, y }, { x, y: y + 1 }]) {
         if (!this.inBounds(b.x, b.y)) continue;
         const a = { x, y };
+        const ta = this.get(a.x, a.y);
+        const tb = this.get(b.x, b.y);
+        if ((isHeart(ta) && tb && tb.type !== 'egg') || (isHeart(tb) && ta && ta.type !== 'egg')) {
+          yield [a, b];
+          continue;
+        }
         this.swap(a, b);
         const ok = this.#matchesAt(a.x, a.y) || this.#matchesAt(b.x, b.y);
         this.swap(a, b);

@@ -12,6 +12,7 @@ const PALETTE = {
   earth: { base: '#f2b01e', light: '#fff0a8', dark: '#8a4f00', glow: '#ffd048' },
   star: { base: '#9b5de5', light: '#e2c6ff', dark: '#3f1878', glow: '#c08bff' },
   egg: { base: '#f3e6c4', light: '#fffaf0', dark: '#9c7c48', glow: '#fff2c8' },
+  heart: { base: '#3a2470', light: '#d9c8ff', dark: '#120a2e', glow: '#ffffff' },
 };
 const TYPES = Object.keys(PALETTE);
 const INK = '#2b1b2e';
@@ -64,6 +65,8 @@ function shapePath(g, type) {
     g.bezierCurveTo(-0.42, 0.1, -0.34, -0.32, 0, -0.5);
   } else if (type === 'earth') {
     g.roundRect(-0.41, -0.41, 0.82, 0.82, 0.15);
+  } else if (type === 'heart') {
+    g.arc(0, 0.01, 0.45, 0, TAU);
   } else if (type === 'egg') {
     g.moveTo(0, -0.47);
     g.bezierCurveTo(0.26, -0.47, 0.38, -0.05, 0.38, 0.12);
@@ -147,6 +150,26 @@ function facets(g, type, P) {
       g.lineTo(-0.2, y - 0.12);
     }
     g.stroke();
+  } else if (type === 'heart') {
+    const neb = g.createRadialGradient(0.12, 0.1, 0, 0.12, 0.1, 0.4);
+    neb.addColorStop(0, 'rgba(255,143,216,0.55)');
+    neb.addColorStop(1, 'rgba(255,143,216,0)');
+    g.fillStyle = neb;
+    g.fillRect(-0.5, -0.5, 1, 1);
+    const neb2 = g.createRadialGradient(-0.15, 0.15, 0, -0.15, 0.15, 0.3);
+    neb2.addColorStop(0, 'rgba(95,180,255,0.5)');
+    neb2.addColorStop(1, 'rgba(95,180,255,0)');
+    g.fillStyle = neb2;
+    g.fillRect(-0.5, -0.5, 1, 1);
+    const colors = ['#ff6b5e', '#5fb4ff', '#4fe39a', '#ffd048', '#c08bff'];
+    for (let i = 0; i < 16; i++) {
+      const a = i * 2.39996;
+      const r = 0.08 + (i / 16) * 0.32;
+      g.fillStyle = colors[i % 5];
+      g.beginPath();
+      g.arc(Math.cos(a) * r, Math.sin(a) * r + 0.02, 0.018 + (i % 3) * 0.006, 0, TAU);
+      g.fill();
+    }
   } else if (type === 'egg') {
     g.fillStyle = 'rgba(190,150,90,0.55)';
     for (const [x, y, r] of [
@@ -252,6 +275,7 @@ const FACE_LAYOUT = {
   earth: { ex: 0.14, ey: -0.03, er: 0.095 },
   star: { ex: 0.075, ey: 0.1, er: 0.062 },
   egg: { ex: 0.11, ey: 0.1, er: 0.06 },
+  heart: { ex: 0.12, ey: 0.02, er: 0.075 },
 };
 
 function drawFace(g, type, s, now, asleep) {
@@ -318,6 +342,20 @@ function drawFace(g, type, s, now, asleep) {
     g.ellipse(x, y, w, w * 0.55, 0, 0, TAU);
     g.fill();
   };
+
+  if (type === 'heart') {
+    g.strokeStyle = '#fff';
+    closedEye(-ex, ey, true);
+    closedEye(ex, ey, true);
+    g.strokeStyle = '#fff';
+    g.lineWidth = 0.032;
+    g.beginPath();
+    g.moveTo(-0.08, 0.15);
+    g.quadraticCurveTo(0, 0.24, 0.08, 0.15);
+    g.stroke();
+    g.strokeStyle = INK;
+    return;
+  }
 
   if (type === 'egg') {
     closedEye(-ex);
@@ -432,6 +470,212 @@ function drawFace(g, type, s, now, asleep) {
   }
 }
 
+// ---------- 狀態外觀：畫在水晶前後的小配件（單位座標，1 = 水晶大小） ----------
+// 遊戲盤面與圖鑑小圖共用，所以寫成獨立函式
+
+const RAINBOW = ['#ff6b5e', '#ffd048', '#4fe39a', '#5fb4ff', '#c08bff'];
+
+// 水晶背後：滿月的金色光環、星辰之心的彩虹光芒
+function drawBehind(g, tile, now, phase) {
+  if (tile.special === 'moon') {
+    g.save();
+    g.rotate(now * 0.8 + phase);
+    g.strokeStyle = 'rgba(255,220,120,0.95)';
+    g.lineWidth = 0.05;
+    g.setLineDash([0.12, 0.07]);
+    g.beginPath();
+    g.arc(0, 0, 0.56, 0, TAU);
+    g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = '#fff6d8';
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * TAU;
+      g.beginPath();
+      g.arc(Math.cos(a) * 0.56, Math.sin(a) * 0.56, 0.045, 0, TAU);
+      g.fill();
+    }
+    g.restore();
+  } else if (tile.type === 'heart') {
+    g.save();
+    g.rotate(now * 0.6 + phase);
+    for (let i = 0; i < 10; i++) {
+      g.rotate(TAU / 10);
+      g.fillStyle = RAINBOW[i % 5];
+      g.globalAlpha = 0.75;
+      g.beginPath();
+      g.moveTo(0.42, -0.05);
+      g.lineTo(0.62 + Math.sin(now * 4 + i) * 0.03, 0);
+      g.lineTo(0.42, 0.05);
+      g.closePath();
+      g.fill();
+    }
+    g.globalAlpha = 1;
+    g.restore();
+  }
+}
+
+// 水晶前面：種子嫩芽、睡帽、流星的光帶與箭頭、滿月的小月牙、星辰之心的繞行星點
+function drawFront(g, tile, now, phase) {
+  const special = tile.special;
+  if (special === 'seed') drawSprout(g, tile, now, phase);
+  else if (special === 'sleep') drawNightcap(g, now, phase);
+  else if (special === 'meteor') drawMeteor(g, tile.dir, now, phase);
+  else if (special === 'moon') {
+    g.save();
+    g.translate(-0.3, -0.3);
+    g.fillStyle = '#ffe28a';
+    g.strokeStyle = '#8a5a12';
+    g.lineWidth = 0.025;
+    g.beginPath();
+    g.arc(0, 0, 0.13, 0, TAU);
+    g.arc(0.06, -0.04, 0.11, 0, TAU, true);
+    g.fill('evenodd');
+    g.stroke();
+    g.restore();
+  } else if (tile.type === 'heart') {
+    for (let i = 0; i < 5; i++) {
+      const a = now * 1.6 + phase + (i / 5) * TAU;
+      g.fillStyle = RAINBOW[i];
+      g.strokeStyle = '#fff';
+      g.lineWidth = 0.015;
+      g.beginPath();
+      g.arc(Math.cos(a) * 0.5, Math.sin(a) * 0.5 * 0.55, 0.055, 0, TAU);
+      g.fill();
+      g.stroke();
+    }
+  }
+}
+
+// 流星：穿過水晶的白色光帶（方向就是它會清掉的那條線），兩端加箭頭
+function drawMeteor(g, dir, now, phase) {
+  g.save();
+  if (dir === 'v') g.rotate(Math.PI / 2);
+  const shine = 0.55 + Math.sin(now * 5 + phase) * 0.25;
+  const band = g.createLinearGradient(0, -0.12, 0, 0.12);
+  band.addColorStop(0, 'rgba(255,255,255,0)');
+  band.addColorStop(0.5, `rgba(255,255,255,${shine})`);
+  band.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = band;
+  g.fillRect(-0.5, -0.12, 1, 0.24);
+  // 光帶上跑動的亮點
+  const run = ((now * 1.2 + phase) % 1) * 1.2 - 0.6;
+  g.fillStyle = 'rgba(255,255,255,0.95)';
+  g.beginPath();
+  g.ellipse(run, 0, 0.09, 0.03, 0, 0, TAU);
+  g.fill();
+  g.fillStyle = '#fff';
+  g.strokeStyle = INK;
+  g.lineWidth = 0.025;
+  for (const side of [-1, 1]) {
+    g.beginPath();
+    g.moveTo(side * 0.6, 0);
+    g.lineTo(side * 0.44, -0.11);
+    g.lineTo(side * 0.44, 0.11);
+    g.closePath();
+    g.fill();
+    g.stroke();
+  }
+  g.restore();
+}
+
+// 種子：右上角冒出的小芽，越接近開花越大
+function drawSprout(g, tile, now, phase) {
+  const grow = Math.min(1.25, 0.85 + (tile.age ?? 0) * 0.15);
+  g.save();
+  g.translate(0.24, -0.26);
+  g.rotate(0.25 + Math.sin(now * 2 + phase) * 0.15);
+  g.scale(grow, grow);
+  g.strokeStyle = '#1f5e2e';
+  g.lineWidth = 0.05;
+  g.beginPath();
+  g.moveTo(0, 0.1);
+  g.quadraticCurveTo(0.03, -0.06, 0, -0.18);
+  g.stroke();
+  for (const dir of [-1, 1]) {
+    g.beginPath();
+    g.ellipse(dir * 0.11, -0.2, 0.12, 0.065, dir * -0.5, 0, TAU);
+    g.fillStyle = '#6fe08a';
+    g.fill();
+    g.lineWidth = 0.03;
+    g.stroke();
+  }
+  g.restore();
+}
+
+// 沉睡：藍色睡帽
+function drawNightcap(g, now, phase) {
+  g.save();
+  g.translate(0.06, -0.34);
+  g.rotate(0.35 + Math.sin(now * 1.2 + phase) * 0.05);
+  g.beginPath();
+  g.moveTo(-0.2, 0.06);
+  g.quadraticCurveTo(0.02, -0.28, 0.24, -0.16);
+  g.lineTo(0.18, 0.08);
+  g.closePath();
+  g.fillStyle = '#4a63c9';
+  g.fill();
+  g.strokeStyle = '#1e2a66';
+  g.lineWidth = 0.025;
+  g.stroke();
+  g.fillStyle = '#e8eeff';
+  g.fillRect(-0.21, 0.03, 0.42, 0.07);
+  g.beginPath();
+  g.arc(0.25, -0.17, 0.06, 0, TAU);
+  g.fill();
+  g.restore();
+}
+
+// 花晶：水晶背後轉動的一圈花瓣（以格子大小為單位）
+function drawPetals(g, cell, now, phase, glow) {
+  g.save();
+  g.rotate(now * 0.4 + phase);
+  if (glow) {
+    g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = 0.5;
+    g.drawImage(glow, -cell * 0.75, -cell * 0.75, cell * 1.5, cell * 1.5);
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+  }
+  for (let i = 0; i < 6; i++) {
+    g.rotate(TAU / 6);
+    g.beginPath();
+    g.ellipse(0, -cell * 0.4, cell * 0.12, cell * 0.2, 0, 0, TAU);
+    g.fillStyle = i % 2 ? '#ffc4e4' : '#ff9ed0';
+    g.fill();
+    g.strokeStyle = 'rgba(160,40,110,0.5)';
+    g.lineWidth = Math.max(1, cell * 0.02);
+    g.stroke();
+  }
+  g.restore();
+}
+
+// 圖鑑用的單顆方塊靜態圖：tile = { type, special, dir, age }
+export function renderTileImage(tile, px = 96) {
+  const c = document.createElement('canvas');
+  c.width = c.height = px;
+  const g = c.getContext('2d');
+  const cell = px * 0.74;
+  const u = cell * GEM_SCALE;
+  g.translate(px / 2, px / 2);
+  if (tile.special === 'flower') drawPetals(g, cell, 0.3, 0, null);
+  g.save();
+  g.scale(u, u);
+  drawBehind(g, tile, 0.3, 0);
+  g.restore();
+  g.drawImage(buildBody(tile.type, cell * 2, tile.special === 'sleep'), -cell / 2, -cell / 2, cell, cell);
+  g.save();
+  g.scale(u, u);
+  drawFace(g, tile.type, { look: { x: 0, y: 0.3 }, blinkAt: -9, phase: 0 }, 0, tile.special === 'sleep');
+  drawFront(g, tile, 0.3, 0);
+  g.restore();
+  if (tile.special === 'sleep') {
+    g.fillStyle = '#d9e4ff';
+    g.font = `700 ${Math.round(cell * 0.3)}px Fredoka, system-ui, sans-serif`;
+    g.fillText('z', cell * 0.25, -cell * 0.32);
+  }
+  return c.toDataURL();
+}
+
 // ---------- 渲染器 ----------
 
 export class BoardView {
@@ -451,6 +695,7 @@ export class BoardView {
     this.shards = [];
     this.sparks = [];
     this.rings = [];
+    this.beams = []; // 特殊水晶引爆的光束
     this.texts = [];
     this.confetti = [];
     this.rays = null;
@@ -981,6 +1226,44 @@ export class BoardView {
     }
   }
 
+  // 特殊水晶引爆：流星是整條光束、滿月是大爆炸、星辰之心向每個目標射出彩色光線
+  detonate(detonations) {
+    const L = this.layout;
+    const cell = L.cell;
+    for (const d of detonations) {
+      const c = this.cellCenter(d.x, d.y);
+      const color = PALETTE[d.color]?.glow ?? '#ffffff';
+      if (d.kind === 'meteor') {
+        const h = d.dir !== 'v';
+        this.beams.push({
+          x1: h ? L.bx : c.x,
+          y1: h ? c.y : L.by,
+          x2: h ? L.bx + L.size : c.x,
+          y2: h ? c.y : L.by + L.size,
+          width: cell * 0.9,
+          color,
+          life: 0.45,
+          t: 0,
+        });
+        this.shake(0.25);
+      } else if (d.kind === 'moon') {
+        this.ring(c.x, c.y, '#ffe28a', cell * 2.6, 10);
+        this.ring(c.x, c.y, color, cell * 1.8, 6);
+        this.beams.push({ burst: true, x1: c.x, y1: c.y, width: cell * 3.2, color: '#ffe28a', life: 0.4, t: 0 });
+        this.shake(0.35);
+      } else {
+        const colors = ['#ff6b5e', '#ffd048', '#4fe39a', '#5fb4ff', '#c08bff'];
+        d.targets.forEach((tg, i) => {
+          const p = this.cellCenter(tg.x, tg.y);
+          this.beams.push({ x1: c.x, y1: c.y, x2: p.x, y2: p.y, width: Math.max(3, cell * 0.12), color: colors[i % 5], life: 0.55, t: -i * 0.012 });
+        });
+        this.ring(c.x, c.y, '#ffffff', cell * 3, 8);
+        this.flash(0.35);
+        this.shake(0.5);
+      }
+    }
+  }
+
   ring(x, y, color, maxR, width = 6) {
     this.rings.push({ x, y, color, maxR, width, life: 0.5, t: 0 });
   }
@@ -1101,6 +1384,7 @@ export class BoardView {
       return p.t > p.life;
     });
     step(this.rings, (r) => (r.t += dt) > r.life);
+    step(this.beams, (b) => (b.t += dt) > b.life);
     step(this.texts, (t) => (t.t += rdt) > t.life);
     step(this.confetti, (p) => {
       p.t += rdt;
@@ -1220,30 +1504,12 @@ export class BoardView {
     ctx.restore();
   }
 
-  // 花晶：水晶背後轉動的一圈花瓣
   drawPetals(s) {
-    const { ctx } = this;
     const c = this.cellCenter(s.x, s.y);
-    const cell = this.layout.cell;
-    ctx.save();
-    ctx.translate(c.x, c.y);
-    ctx.rotate(this.now * 0.4 + s.phase);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.5;
-    ctx.drawImage(this.glows.pink, -cell * 0.75, -cell * 0.75, cell * 1.5, cell * 1.5);
-    ctx.globalAlpha = 1;
-    ctx.globalCompositeOperation = 'source-over';
-    for (let i = 0; i < 6; i++) {
-      ctx.rotate(TAU / 6);
-      ctx.beginPath();
-      ctx.ellipse(0, -cell * 0.4, cell * 0.12, cell * 0.2, 0, 0, TAU);
-      ctx.fillStyle = i % 2 ? '#ffc4e4' : '#ff9ed0';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(160,40,110,0.5)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-    }
-    ctx.restore();
+    this.ctx.save();
+    this.ctx.translate(c.x, c.y);
+    drawPetals(this.ctx, this.layout.cell, this.now, s.phase, this.glows.pink);
+    this.ctx.restore();
   }
 
   drawSprite(s) {
@@ -1287,13 +1553,16 @@ export class BoardView {
     ctx.translate(c.x, c.y + bob + cell * s.sq * 0.25);
     ctx.rotate(rot);
     ctx.scale(sx * scale, sy * scale);
-    ctx.drawImage((asleep ? this.sleepBodies : this.bodies)[type], -cell / 2, -cell / 2, cell, cell);
     const u = cell * GEM_SCALE;
     ctx.save();
     ctx.scale(u, u);
+    drawBehind(ctx, s.tile, now, s.phase);
+    ctx.restore();
+    ctx.drawImage((asleep ? this.sleepBodies : this.bodies)[type], -cell / 2, -cell / 2, cell, cell);
+    ctx.save();
+    ctx.scale(u, u);
     drawFace(ctx, type, s, now, asleep);
-    if (special === 'seed') this.drawSprout(ctx, s);
-    if (asleep) this.drawNightcap(ctx, s);
+    drawFront(ctx, s.tile, now, s.phase);
     ctx.restore();
     const gk = (now - s.glintAt) / 0.5;
     if (!asleep && gk > 0 && gk < 1) {
@@ -1337,56 +1606,39 @@ export class BoardView {
     }
   }
 
-  // 種子：頭上冒出的小芽，隨步數長大、微微擺動
-  drawSprout(g, s) {
-    // 種在右上角，越接近開花越大
-    const grow = Math.min(1.25, 0.85 + (s.tile.age ?? 0) * 0.15);
-    g.save();
-    g.translate(0.24, -0.26);
-    g.rotate(0.25 + Math.sin(this.now * 2 + s.phase) * 0.15);
-    g.scale(grow, grow);
-    g.strokeStyle = '#1f5e2e';
-    g.lineWidth = 0.05;
-    g.beginPath();
-    g.moveTo(0, 0.1);
-    g.quadraticCurveTo(0.03, -0.06, 0, -0.18);
-    g.stroke();
-    for (const dir of [-1, 1]) {
-      g.beginPath();
-      g.ellipse(dir * 0.11, -0.2, 0.12, 0.065, dir * -0.5, 0, TAU);
-      g.fillStyle = '#6fe08a';
-      g.fill();
-      g.lineWidth = 0.03;
-      g.stroke();
-    }
-    g.restore();
-  }
-
-  // 沉睡：藍色睡帽
-  drawNightcap(g, s) {
-    g.save();
-    g.translate(0.06, -0.34);
-    g.rotate(0.35 + Math.sin(this.now * 1.2 + s.phase) * 0.05);
-    g.beginPath();
-    g.moveTo(-0.2, 0.06);
-    g.quadraticCurveTo(0.02, -0.28, 0.24, -0.16);
-    g.lineTo(0.18, 0.08);
-    g.closePath();
-    g.fillStyle = '#4a63c9';
-    g.fill();
-    g.strokeStyle = '#1e2a66';
-    g.lineWidth = 0.025;
-    g.stroke();
-    g.fillStyle = '#e8eeff';
-    g.fillRect(-0.21, 0.03, 0.42, 0.07);
-    g.beginPath();
-    g.arc(0.25, -0.17, 0.06, 0, TAU);
-    g.fill();
-    g.restore();
-  }
-
   drawEffects() {
     const { ctx } = this;
+    ctx.globalCompositeOperation = 'lighter';
+    for (const b of this.beams) {
+      if (b.t < 0) continue;
+      const k = b.t / b.life;
+      const a = 1 - k;
+      if (b.burst) {
+        const r = b.width * (0.3 + k * 0.7);
+        const g = ctx.createRadialGradient(b.x1, b.y1, 0, b.x1, b.y1, r);
+        g.addColorStop(0, `rgba(255,255,255,${a})`);
+        g.addColorStop(0.4, rgba(b.color, a * 0.8));
+        g.addColorStop(1, rgba(b.color, 0));
+        ctx.fillStyle = g;
+        ctx.fillRect(b.x1 - r, b.y1 - r, r * 2, r * 2);
+        continue;
+      }
+      // 光束：外層彩色、內層白芯，越後面越細
+      const grow = Math.min(1, k * 4);
+      const ex = b.x1 + (b.x2 - b.x1) * grow;
+      const ey = b.y1 + (b.y2 - b.y1) * grow;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = rgba(b.color, a * 0.8);
+      ctx.lineWidth = b.width * (1 - k * 0.6);
+      ctx.beginPath();
+      ctx.moveTo(b.x1, b.y1);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = b.width * 0.35 * (1 - k * 0.6);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
     for (const r of this.rings) {
       const k = r.t / r.life;
       ctx.strokeStyle = rgba(r.color, (1 - k) * 0.9);

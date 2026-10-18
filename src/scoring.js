@@ -8,6 +8,8 @@ export const SHAPE_BONUS = {
 };
 
 export function groupBonus(group) {
+  // 被特殊水晶炸掉的格子沒有形狀加值，改給引爆加值（見 cascade.js）
+  if (group.blast) return group.blastBonus ?? 0;
   let bonus = 0;
   if (group.longest >= 5) bonus += SHAPE_BONUS.five;
   else if (group.longest === 4) bonus += SHAPE_BONUS.four;

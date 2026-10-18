@@ -151,11 +151,24 @@
           <li>得分 =（水晶分數 + 形狀加值）× 連鎖倍率。4 連、5 連、L 形、T 形有加值，連鎖越多層倍率越高。</li>
           <li>一局有三位客人，最後一位是 Boss。過關可以拿金幣，剩下的步數也會換成金幣。</li>
           <li>關卡之間會進占卜室，三張牌選一張帶走。塔羅牌最多 5 張，點一下可以看效果。逆位比較強，但有代價。</li>
-          <li><span id="help-ic-sprout" class="rule-ic"></span>種子走 3 步會長成<span id="help-ic-flower" class="rule-ic"></span>花晶，基礎分 ×3。</li>
-          <li><span id="help-ic-egg" class="rule-ic"></span>蛋和<span id="help-ic-moon" class="rule-ic"></span>沉睡水晶不能拿來配對，旁邊有消除時會孵化或醒來。</li>
+          <li>4 連、L 形、T 形、5 連會生出特殊水晶，再消掉它就會引爆，詳見下方圖鑑。</li>
         </ul>
+        <div id="codex" class="codex"></div>
         <p id="help-perks" class="help-perks"></p>
         <p class="meta"><span id="version"></span> · 種子 <span id="seed"></span> · <a href="demo/board.html">Canvas 試作頁</a></p>
+      </div>
+    </div>
+
+    <!-- 新方塊介紹：第一次出現時跳出 -->
+    <div id="newkind" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="newkind-name">
+      <div class="modal-card newkind-card">
+        <div class="newkind-tag">新方塊</div>
+        <img id="newkind-img" class="newkind-img" alt="" />
+        <h2 id="newkind-name" class="title-text"></h2>
+        <p id="newkind-how" class="newkind-how"></p>
+        <p id="newkind-desc" class="newkind-desc"></p>
+        <div id="newkind-recipe" class="recipe"></div>
+        <button id="btn-newkind" type="button" class="btn btn-gold btn-big">知道了</button>
       </div>
     </div>
 

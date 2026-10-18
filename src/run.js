@@ -4,12 +4,12 @@ import { CHARACTERS, DEFAULT_CHARACTER } from './characters.js';
 
 // 目標分數由 tools/simulate.mjs 校準，見 PLAN.md
 export const LEVELS = [
-  { name: '第一位客人', kind: 'small', target: 1200, reward: 3 },
-  { name: '第二位客人', kind: 'small', target: 1400, reward: 4 },
+  { name: '第一位客人', kind: 'small', target: 1600, reward: 3 },
+  { name: '第二位客人', kind: 'small', target: 1900, reward: 4 },
   {
     name: '失眠的貓頭鷹',
     kind: 'boss',
-    target: 1800,
+    target: 2500,
     reward: 6,
     boss: 'owl',
     rule: '每 3 步，隨機 2 顆水晶睡著（旁邊有消除就會醒來）',

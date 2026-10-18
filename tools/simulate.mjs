@@ -1,35 +1,56 @@
 // 平衡用模擬器：讓電腦下很多局，看分數分布與各關目標的過關率。
-// node tools/simulate.mjs [局數] [步數] [強化，例如 fire+3,star+3]
+// node tools/simulate.mjs [局數] [步數] [強化，例如 fire+3,star+3] [--old]
 // random = 隨便選一步可走的；greedy = 選這一步第一層得分最高的（不預判連鎖）
-// 真人大致落在兩者之間
-import { Board } from '../src/board.js';
+// 真人大致落在兩者之間。規則與遊戲相同：會生出特殊水晶、引爆、星辰之心可交換
+// --old：用加入特殊水晶之前的規則跑，方便比較差多少
+import { Board, isHeart } from '../src/board.js';
 import { createRng } from '../src/rng.js';
 import { BASE_SCORE, PLAIN_FX, scoreLayer } from '../src/scoring.js';
+import { applyLayer, heartSwapPlan, planLayer } from '../src/cascade.js';
 import { LEVELS } from '../src/run.js';
 
-const games = Number(process.argv[2]) || 2000;
-const steps = Number(process.argv[3]) || 15;
+const args = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const oldRules = process.argv.includes('--old');
+const games = Number(args[0]) || 2000;
+const steps = Number(args[1]) || 15;
 const base = { ...BASE_SCORE };
 const fx = { ...PLAIN_FX, baseTable: base };
-for (const mod of (process.argv[4] || '').split(',').filter(Boolean)) {
+for (const mod of (args[2] || '').split(',').filter(Boolean)) {
   const [type, n] = mod.split('+');
   base[type] += Number(n);
 }
 
+const heartMove = (board, [a, b]) => isHeart(board.get(a.x, a.y)) || isHeart(board.get(b.x, b.y));
+
 function playStep(board, [a, b]) {
-  board.swap(a, b);
-  let groups = board.findMatches();
+  let plan;
+  if (heartMove(board, [a, b])) plan = heartSwapPlan(board, a, b);
+  else {
+    board.swap(a, b);
+    const groups = board.findMatches();
+    plan = oldRules ? { creations: [], clearCells: groups.flatMap((g) => g.cells), scoreGroups: groups, touched: [] } : planLayer(board, groups, [a, b]);
+  }
   let chain = 0;
   let total = 0;
-  while (groups.length) {
+  while (plan) {
     chain++;
-    total += scoreLayer(groups, { chain, step: 99 }, fx).total;
-    for (const g of groups) board.clear(g.cells);
+    total += scoreLayer(plan.scoreGroups, { chain, step: 99 }, fx).total;
+    applyLayer(board, plan);
     board.collapse();
-    groups = board.findMatches();
+    const groups = board.findMatches();
+    plan = !groups.length ? null : oldRules ? { creations: [], clearCells: groups.flatMap((g) => g.cells), scoreGroups: groups, touched: [] } : planLayer(board, groups);
   }
   if (!board.hasValidMove()) board.shuffle();
   return total;
+}
+
+function firstLayerScore(board, move) {
+  if (heartMove(board, move)) return scoreLayer(heartSwapPlan(board, ...move).scoreGroups, { chain: 1, step: 99 }, fx).total;
+  board.swap(move[0], move[1]);
+  const groups = board.findMatches();
+  const s = scoreLayer(oldRules ? groups : planLayer(board, groups, move).scoreGroups, { chain: 1, step: 99 }, fx).total;
+  board.swap(move[0], move[1]);
+  return s;
 }
 
 const players = {
@@ -41,9 +62,7 @@ const players = {
     let best = null;
     let bestScore = -1;
     for (const m of board.validMoves()) {
-      board.swap(m[0], m[1]);
-      const s = scoreLayer(board.findMatches(), { chain: 1, step: 99 }, fx).total;
-      board.swap(m[0], m[1]);
+      const s = firstLayerScore(board, m);
       if (s > bestScore) [best, bestScore] = [m, s];
     }
     return best;

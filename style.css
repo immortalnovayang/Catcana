@@ -1381,3 +1381,166 @@ body.in-menu .hud {
     animation: none;
   }
 }
+
+/* ---------- 方塊圖鑑與新方塊介紹 ---------- */
+
+.codex h3 {
+  margin: 16px 0 8px;
+  font-size: 0.95rem;
+  color: var(--gold);
+}
+
+.codex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.codex-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.codex-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 211, 110, 0.18);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.codex-item.wide {
+  align-items: flex-start;
+}
+
+.codex-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.codex-item strong {
+  font-size: 0.9rem;
+}
+
+.codex-item em {
+  font-style: normal;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.codex-item span {
+  color: var(--muted);
+}
+
+.tile-img {
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+
+.tile-img.mini {
+  width: 22px;
+  height: 22px;
+}
+
+.tile-img.made {
+  width: 40px;
+  height: 40px;
+}
+
+.recipe {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.recipe:empty {
+  display: none;
+}
+
+.recipe-row {
+  display: flex;
+}
+
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 22px);
+  grid-auto-rows: 22px;
+}
+
+.mini-empty {
+  width: 22px;
+  height: 22px;
+}
+
+.recipe-arrow {
+  color: var(--gold);
+}
+
+.recipe-arrow .ic {
+  width: 20px;
+  height: 20px;
+}
+
+.newkind-card {
+  text-align: center;
+  max-width: 320px;
+  padding-top: 30px;
+}
+
+.newkind-tag {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 18px;
+  border-radius: 10px;
+  font-weight: 900;
+  font-size: 0.9rem;
+  color: var(--gold-deep);
+  background: linear-gradient(180deg, #fff1bf, var(--gold) 50%, #e0a43a);
+  box-shadow: 0 3px 0 var(--gold-dark);
+}
+
+.newkind-img {
+  width: 132px;
+  height: 132px;
+  display: block;
+  margin: 0 auto 4px;
+  animation: float 2.4s ease-in-out infinite;
+}
+
+.newkind-how {
+  margin: 6px 0 0;
+  font-weight: 800;
+  color: var(--gold);
+}
+
+.newkind-how:empty {
+  display: none;
+}
+
+.newkind-desc {
+  margin: 8px 0 12px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.newkind-card .recipe {
+  justify-content: center;
+  margin: 0 0 16px;
+}
+
+/* 卡片很短，不需要捲動；讓上方的「新方塊」標籤可以超出卡片邊緣 */
+.newkind-card {
+  overflow: visible;
+}
