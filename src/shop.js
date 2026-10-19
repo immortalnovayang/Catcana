@@ -88,11 +88,11 @@ function tarotOffer(card, reversed) {
   };
 }
 
-// 從牌池抽 n 張不重複的商品。weight 越低越稀有（預設 1）
-export function drawOffers(rng, run, n = 3) {
+// 從牌池抽 n 張不重複的商品。weight 越低越稀有（預設 1）；tarotOnly 只抽塔羅牌（難纏客人的謝禮）
+export function drawOffers(rng, run, n = 3, { tarotOnly = false } = {}) {
   const held = new Set(run.tarots.map((t) => t.id));
   const pool = [
-    ...CATALOG.map((item) => ({ weight: 1, make: () => item })),
+    ...(tarotOnly ? [] : CATALOG.map((item) => ({ weight: 1, make: () => item }))),
     ...TAROT.filter((c) => !held.has(c.id)).map((c) => ({ weight: c.weight ?? 1, make: () => tarotOffer(c, rng() < 0.5) })),
   ];
   const offers = [];
@@ -105,12 +105,14 @@ export function drawOffers(rng, run, n = 3) {
   return offers;
 }
 
-// 一次占卜室造訪：只能帶走一張；重抽一次比一次貴
-export function createShopVisit(rng, run) {
-  return { rng, offers: drawOffers(rng, run), rerolls: 0, bought: null };
+// 一次造訪：只能帶走一張；重抽一次比一次貴
+// free：流星雨、難纏客人的謝禮，免費且不能重抽
+export function createShopVisit(rng, run, { free = false, tarotOnly = false } = {}) {
+  return { rng, offers: drawOffers(rng, run, 3, { tarotOnly }), rerolls: 0, bought: null, free, tarotOnly };
 }
 
-export function priceOf(item, fx) {
+export function priceOf(item, fx, visit = null) {
+  if (visit?.free) return 0;
   return Math.ceil(item.price * fx.priceMult);
 }
 
@@ -124,21 +126,21 @@ export function handFull(run) {
 
 export function reroll(run, visit) {
   const cost = rerollCost(visit);
-  if (visit.bought || run.gold < cost) return false;
+  if (visit.free || visit.bought || run.gold < cost) return false;
   run.gold -= cost;
   visit.rerolls++;
-  visit.offers = drawOffers(visit.rng, run);
+  visit.offers = drawOffers(visit.rng, run, 3, { tarotOnly: visit.tarotOnly });
   return true;
 }
 
 export function canBuy(run, visit, item, fx) {
-  if (visit.bought || !visit.offers.includes(item) || run.gold < priceOf(item, fx)) return false;
+  if (visit.bought || !visit.offers.includes(item) || run.gold < priceOf(item, fx, visit)) return false;
   return item.kind !== 'tarot' || !handFull(run);
 }
 
 export function buy(run, visit, item, fx) {
   if (!canBuy(run, visit, item, fx)) return false;
-  run.gold -= priceOf(item, fx);
+  run.gold -= priceOf(item, fx, visit);
   item.apply(run);
   if (item.kind !== 'tarot') run.owned.push(item.id);
   visit.bought = item;

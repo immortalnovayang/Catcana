@@ -125,13 +125,9 @@
       <section id="shop" class="screen shop" hidden aria-label="占卜室">
         <div class="shop-head">
           <span id="shop-icon" class="shop-icon"></span>
-          <h2 class="title-text">占卜室</h2>
+          <h2 id="shop-title" class="title-text">占卜室</h2>
         </div>
-        <div class="shop-next">
-          <canvas id="shop-customer" class="shop-customer"></canvas>
-          <p class="shop-sub">抽到三張牌，選一張帶走。<br />下一位客人：<strong id="shop-next"></strong>（目標 <span id="shop-next-target"></span> 分）</p>
-        </div>
-        <p id="shop-rule" class="shop-rule"></p>
+        <p id="shop-sub" class="shop-sub"></p>
         <div id="offers" class="offers"></div>
         <div class="shop-actions">
           <button id="btn-reroll" type="button" class="btn btn-dark"></button>
@@ -143,6 +139,44 @@
           <p id="shop-perks" class="shop-perks"></p>
         </div>
         <p id="shop-hint" class="shop-hint"></p>
+      </section>
+
+      <!-- 星盤：選下一顆星 -->
+      <section id="mapscreen" class="screen mapscreen" hidden aria-label="星盤">
+        <div class="map-title">
+          <div id="map-progress" class="map-progress"></div>
+        </div>
+        <div id="map-area" class="map-area">
+          <canvas id="map-lines" class="map-lines" aria-hidden="true"></canvas>
+          <div id="starmap" class="starmap"></div>
+        </div>
+        <section id="map-panel" class="map-panel" aria-live="polite"></section>
+      </section>
+
+      <!-- 星光冥想：休息，選一個強化 -->
+      <section id="rest" class="screen choice-screen" hidden aria-label="星光冥想">
+        <div class="choice-head">
+          <span id="rest-icon" class="choice-icon"></span>
+          <h2 class="title-text">星光冥想</h2>
+        </div>
+        <p class="choice-sub">靜下心來，從下面選一個強化。</p>
+        <div id="rest-options" class="choice-options"></div>
+        <div id="rest-pick" class="choice-pick" hidden></div>
+        <p id="rest-result" class="choice-result" hidden></p>
+        <button id="btn-rest-leave" type="button" class="btn btn-dark"></button>
+      </section>
+
+      <!-- 命運之泉：占卜事件 -->
+      <section id="event" class="screen choice-screen" hidden aria-label="命運之泉">
+        <div class="choice-head">
+          <span id="event-icon" class="choice-icon"></span>
+          <h2 id="event-title" class="title-text"></h2>
+        </div>
+        <p id="event-text" class="choice-sub"></p>
+        <div id="event-options" class="choice-options"></div>
+        <div id="event-pick" class="choice-pick" hidden></div>
+        <p id="event-result" class="choice-result" hidden></p>
+        <button id="btn-event-leave" type="button" class="btn btn-gold" hidden>回到星盤</button>
       </section>
     </main>
 

@@ -1,6 +1,6 @@
-// 遊戲流程：角色開場 → 三位客人（小、小、Boss），關卡之間進占卜室抽三選一；塔羅牌改寫計分與規則
+// 遊戲流程：角色開場 → 走牡羊座星盤（客人、難纏客人、占卜室、命運之泉、星光冥想、流星雨）→ Boss；塔羅牌改寫計分與規則
 // 盤面由 board-canvas.js 用 Canvas 繪製，這裡管流程與 DOM 介面
-import { Board, isHeart } from './board.js';
+import { Board, CRYSTALS, isHeart } from './board.js';
 import { createRng, randomSeed } from './rng.js';
 import { scoreLayer } from './scoring.js';
 import { BoardView } from './board-canvas.js';
@@ -15,7 +15,6 @@ import { getAudioSettings, onAudioSettings, setAudioSettings, sfx } from './audi
 import { music } from './music.js';
 import { CUSTOMERS, Portrait, lineFor } from './customers.js';
 import {
-  LEVELS,
   createRun,
   currentLevel,
   finishLevel,
@@ -23,13 +22,18 @@ import {
   levelSeed,
   levelShuffles,
   levelSteps,
+  moveTo,
   OWL_EVERY,
   OWL_SLEEPS,
   shopSeed,
 } from './run.js';
+import { ELITE_RULES, MOONS, NODE_BY_ID, NODE_TYPES, applyMoon } from './starmap.js';
+import { MapView } from './mapview.js';
+import { CRYSTAL_INFO } from './gems.js';
+import { TAROT } from './tarot.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.10 · 背景音樂';
+const VERSION = 'v0.11 · 星盤';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -184,30 +188,40 @@ function skillButton(el, ic, label, count, { picking = false, disabled = false }
 
 // ---------- HUD ----------
 
+const SCREENS = ['intro', 'mapscreen', 'play', 'shop', 'rest', 'event'];
+
 function screen() {
-  return !$('intro').hidden ? 'intro' : !$('shop').hidden ? 'shop' : 'play';
+  return SCREENS.find((id) => !$(id).hidden) ?? 'play';
 }
 
 function updateHud() {
   const level = currentLevel(run);
   const where = screen();
   const sub = $('level-sub');
+  const floor = NODE_BY_ID[run.node].floor;
   if (where === 'intro') {
     $('level-label').textContent = '貓咪占卜師';
     sub.textContent = '選擇你的占卜師';
-  } else if (where === 'shop') {
-    $('level-label').textContent = '占卜室';
-    sub.textContent = '關卡之間';
-  } else {
+  } else if (where === 'play') {
     $('level-label').textContent = level.name;
-    sub.textContent = `第 ${run.level + 1} / ${LEVELS.length} 位客人${level.kind === 'boss' ? ' · BOSS' : ''}`;
+    const tags = [`第 ${floor} 層`];
+    if (level.moon) tags.push(MOONS[level.moon].name);
+    if (level.kind === 'boss') tags.push('BOSS');
+    if (level.kind === 'elite') tags.push('難纏客人');
+    sub.textContent = tags.join(' · ');
+  } else if (where === 'mapscreen') {
+    $('level-label').textContent = '牡羊座星盤';
+    sub.textContent = `第 ${floor} 層 · 已過 ${run.cleared} 關`;
+  } else {
+    $('level-label').textContent = where === 'shop' ? $('shop-title').textContent : NODE_TYPES[run.map[run.node].type].name;
+    sub.textContent = `第 ${floor} 層`;
   }
-  sub.classList.toggle('boss', where === 'play' && level.kind === 'boss');
+  sub.classList.toggle('boss', where === 'play' && level.kind !== 'small');
   $('stat-target').textContent = level.target;
   $('stat-steps').textContent = state.stepsLeft;
   $('steps-card').classList.toggle('low', where === 'play' && state.stepsLeft <= 3);
   $('stat-gold').textContent = run.gold;
-  $('score-bar').style.width = `${Math.min(100, (state.score / level.target) * 100)}%`;
+  $('score-bar').style.width = `${level.target ? Math.min(100, (state.score / level.target) * 100) : 0}%`;
   $('score-card').classList.toggle('done', state.score >= level.target);
 
   const locked = state.busy || state.over || state.pick !== null;
@@ -235,7 +249,9 @@ function showLevelHint() {
     return;
   }
   const level = currentLevel(run);
-  if (level.rule) setStepInfo(`Boss 規則：${level.rule}`, 'owl', 'boss');
+  if (level.kind === 'boss') setStepInfo(`Boss 規則：${level.rule}`, 'owl', 'boss');
+  else if (level.kind === 'elite') setStepInfo(`難纏規則：${level.rule}`, 'sword', 'boss');
+  else if (level.moon) setStepInfo(`${MOONS[level.moon].name}：${MOONS[level.moon].desc}`, 'moon');
   else setStepInfo(`${state.stepsLeft} 步內達到 ${level.target} 分`, 'steps');
 }
 
@@ -250,10 +266,9 @@ function renderPreview() {
 }
 
 function showScreen(name) {
-  music.play(name === 'intro' ? 'title' : name === 'shop' ? 'shop' : currentLevel(run).kind === 'boss' ? 'boss' : 'level');
-  $('intro').hidden = name !== 'intro';
-  $('play').hidden = name !== 'play';
-  $('shop').hidden = name !== 'shop';
+  const track = name === 'intro' || name === 'mapscreen' ? 'title' : name === 'play' ? (currentLevel(run).kind === 'boss' ? 'boss' : 'level') : 'shop';
+  music.play(track);
+  for (const id of SCREENS) $(id).hidden = id !== name;
   $('card-detail').hidden = true;
   document.body.classList.toggle('in-menu', name !== 'play');
 }
@@ -297,7 +312,7 @@ function renderIntro() {
 }
 
 function startLevel() {
-  fx = buildEffects(run);
+  fx = levelEffects();
   state.board = new Board(createRng(levelSeed(run)), { weights: fx.spawnWeights });
   state.over = false;
   state.busy = false;
@@ -401,10 +416,21 @@ async function afterStep() {
 }
 
 // 關卡開始時放上種子與蛋
+// 這一關的效果：手牌與角色，再加上月相、難纏客人的規則
+function levelEffects() {
+  const f = buildEffects(run);
+  const level = currentLevel(run);
+  if (level.moon) applyMoon(f, level.moon);
+  ELITE_RULES[level.eliteRule]?.apply?.(f, level.ruleColor);
+  return f;
+}
+
 function placeLevelSpecials() {
   const board = state.board;
   board.placeSpecial('seed', fx.startSeeds, { flower: fx.growSteps <= 0 });
   board.placeSpecial('egg', fx.startEggs);
+  const sleeps = ELITE_RULES[currentLevel(run).eliteRule]?.sleeps ?? 0;
+  if (sleeps) board.placeSpecial('sleep', sleeps);
   if (!board.hasValidMove()) board.shuffle();
 }
 
@@ -600,11 +626,13 @@ function endLevel(won) {
       mainBtn.onclick = () => newRun(randomSeed());
     } else {
       $('result-title').textContent = '占卜成功！';
-      $('result-note').textContent = `現在有 ${run.gold} 金幣。`;
-      mainBtn.textContent = '前往占卜室';
+      const elite = level.kind === 'elite';
+      $('result-note').textContent = elite ? `現在有 ${run.gold} 金幣。難纏客人送你一張塔羅牌當謝禮！` : `現在有 ${run.gold} 金幣。`;
+      mainBtn.textContent = elite ? '領取謝禮' : '回到星盤';
       mainBtn.onclick = () => {
         sfx.click();
-        openShop();
+        if (elite) openShop({ mode: 'gift' });
+        else openMap();
       };
     }
   } else {
@@ -633,7 +661,7 @@ function endLevel(won) {
 const FEEDBACK_URL = 'https://github.com/immortalnovayang/Catcana/issues/new';
 
 function runResultText(cleared) {
-  return cleared ? '三位客人全部占卜成功' : `走到第 ${run.level + 1} / ${LEVELS.length} 位客人`;
+  return cleared ? '點亮了整個牡羊座' : `走到星盤第 ${NODE_BY_ID[run.node].floor} 層（過了 ${run.cleared} 關）`;
 }
 
 function renderRunSummary(runOver, won) {
@@ -706,16 +734,21 @@ function bump(id) {
 
 const OFFER_TAGS = { planet: '行星', relic: '道具' };
 
-function openShop() {
-  run.level++;
+const SHOP_MODES = {
+  shop: { title: '占卜室', sub: '抽到三張牌，選一張帶走。', icon: 'ball' },
+  meteor: { title: '流星雨', sub: '流星落下來了！三張牌免費選一張。', icon: 'star' },
+  gift: { title: '難纏客人的謝禮', sub: '三張塔羅牌免費選一張。', icon: 'deck' },
+};
+
+function openShop({ mode = 'shop' } = {}) {
   fx = buildEffects(run);
-  visit = createShopVisit(createRng(shopSeed(run)), run);
-  const next = currentLevel(run);
-  $('shop-next').textContent = next.name + (next.kind === 'boss' ? '（Boss）' : '');
-  $('shop-next-target').textContent = next.target;
-  shopPortrait.set(next.customer);
-  $('shop-customer').classList.toggle('boss', next.kind === 'boss');
-  $('shop-rule').innerHTML = next.rule ? `${icon('owl')}<span>Boss 規則：${next.rule}</span>` : '';
+  const free = mode !== 'shop';
+  visit = createShopVisit(createRng(shopSeed(run) + (mode === 'gift' ? 977 : 0)), run, { free, tarotOnly: mode === 'gift' });
+  visit.mode = mode;
+  $('shop-title').textContent = SHOP_MODES[mode].title;
+  $('shop-sub').textContent = SHOP_MODES[mode].sub;
+  $('shop-icon').innerHTML = icon(SHOP_MODES[mode].icon);
+  $('btn-reroll').hidden = free;
   showScreen('shop');
   renderShop();
   updateHud();
@@ -741,7 +774,7 @@ function renderShop() {
       btn.disabled = true;
     } else {
       const full = item.kind === 'tarot' && handFull(run);
-      btn.innerHTML = full && !visit.bought ? '牌位已滿' : `${priceOf(item, fx)}${icon('coin')}`;
+      btn.innerHTML = full && !visit.bought ? '牌位已滿' : visit.free ? '免費帶走' : `${priceOf(item, fx)}${icon('coin')}`;
       btn.disabled = !canBuy(run, visit, item, fx);
       btn.onclick = () => {
         if (buy(run, visit, item, fx)) {
@@ -758,7 +791,7 @@ function renderShop() {
   const cost = rerollCost(visit);
   $('btn-reroll').innerHTML = `${icon('restart')}<span>重抽 ${cost}</span>${icon('coin')}`;
   $('btn-reroll').disabled = Boolean(visit.bought) || run.gold < cost;
-  $('btn-leave').textContent = visit.bought ? '迎接下一位客人' : '不買了，出發';
+  $('btn-leave').textContent = visit.bought ? '回到星盤' : visit.free ? '不拿了，回到星盤' : '不買了，回到星盤';
   renderHand($('shop-hand'), true);
   $('shop-perks').textContent = perksText();
   const mult = fx.interestMult > 1 ? `，再 ×${Math.round(fx.interestMult * 10) / 10}` : '';
@@ -771,6 +804,241 @@ function perksText() {
   for (const id of run.owned) counts.set(id, (counts.get(id) ?? 0) + 1);
   return `道具：${[...counts].map(([id, n]) => `${itemById(id).name}${n > 1 ? ` ×${n}` : ''}`).join('、')}`;
 }
+
+// ---------- 星盤 ----------
+
+const mapView = new MapView({ area: $('map-area'), map: $('starmap'), canvas: $('map-lines'), panel: $('map-panel'), progress: $('map-progress') });
+
+function openMap() {
+  state.over = true;
+  clearTimeout(hintTimer);
+  showScreen('mapscreen');
+  // 手上有命運之輪：預言能力讓整張星盤都看得見
+  mapView.show(run, { onEnter: enterNode, reveal: run.tarots.some((t) => t.id === 'wheel') });
+  updateHud();
+}
+
+function enterNode(id) {
+  moveTo(run, id);
+  sfx.click();
+  const type = run.map[id].type;
+  if (type === 'customer' || type === 'elite' || type === 'boss') startLevel();
+  else if (type === 'shop') openShop();
+  else if (type === 'meteor') openShop({ mode: 'meteor' });
+  else if (type === 'rest') openRest();
+  else if (type === 'fountain') openEvent();
+  else openMap();
+}
+
+// ---------- 星光冥想：三選一的強化 ----------
+
+function openRest() {
+  showScreen('rest');
+  $('rest-icon').innerHTML = icon('moon');
+  $('rest-pick').hidden = true;
+  $('rest-result').hidden = true;
+  $('btn-rest-leave').textContent = '不需要，回到星盤';
+  const options = [
+    { id: 'flip', icon: 'restart', name: '翻轉命運', desc: '選一張塔羅牌，正位變逆位、逆位變正位。', ok: run.tarots.length > 0 },
+    { id: 'polish', icon: 'star', name: '擦亮水晶', desc: '選一種水晶，之後基礎分永久 +2。', ok: true },
+    { id: 'breath', icon: 'steps', name: '深呼吸', desc: '下一關多 3 步。', ok: true },
+  ];
+  const box = $('rest-options');
+  box.replaceChildren(
+    ...options.map((o) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'choice-card';
+      b.disabled = !o.ok;
+      b.innerHTML = `<span class="choice-card-ic">${icon(o.icon)}</span><strong>${o.name}</strong><span>${o.desc}</span>`;
+      b.onclick = () => chooseRest(o.id);
+      return b;
+    }),
+  );
+  updateHud();
+}
+
+function chooseRest(id) {
+  const pick = $('rest-pick');
+  if (id === 'breath') {
+    run.nextBonusSteps += 3;
+    return restDone('深呼吸——下一關多 3 步。');
+  }
+  pick.hidden = false;
+  if (id === 'flip') {
+    pick.replaceChildren(
+      ...run.tarots.map((held) => {
+        const el = tarotCard(held, { mini: true });
+        el.onclick = () => {
+          held.reversed = !held.reversed;
+          restDone(`${tarotById(held.id).name}翻成${held.reversed ? '逆位' : '正位'}了。`);
+        };
+        return el;
+      }),
+    );
+  } else {
+    pick.replaceChildren(
+      ...CRYSTALS.map((t) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'crystal-pick';
+        b.innerHTML = `<img src="${tileImage({ type: t })}" alt="" /><span>${CRYSTAL_INFO[t].name}</span><small>${run.base[t]} → ${run.base[t] + 2}</small>`;
+        b.onclick = () => {
+          run.base[t] += 2;
+          restDone(`${CRYSTAL_INFO[t].name}的基礎分變成 ${run.base[t]}。`);
+        };
+        return b;
+      }),
+    );
+  }
+}
+
+function restDone(text) {
+  sfx.bloom();
+  for (const b of $('rest-options').querySelectorAll('button')) b.disabled = true;
+  $('rest-pick').hidden = true;
+  $('rest-result').textContent = text;
+  $('rest-result').hidden = false;
+  $('btn-rest-leave').textContent = '回到星盤';
+  updateHud();
+}
+
+// ---------- 命運之泉：隨機一個占卜事件 ----------
+
+const EVENTS = ['card', 'wish', 'trade'];
+
+function eventRng() {
+  return createRng((shopSeed(run) ^ 0x9e3779b9) >>> 0);
+}
+
+function randomTarot(rng) {
+  const held = new Set(run.tarots.map((t) => t.id));
+  const pool = TAROT.filter((c) => !held.has(c.id));
+  if (!pool.length) return null;
+  return { id: pool[rng.int(pool.length)].id, reversed: rng() < 0.5 };
+}
+
+function openEvent() {
+  showScreen('event');
+  const rng = eventRng();
+  const kind = EVENTS[rng.int(EVENTS.length)];
+  $('event-pick').hidden = true;
+  $('event-result').hidden = true;
+  $('btn-event-leave').hidden = true;
+  const leave = { label: '不碰它，離開', run: () => eventDone('你轉身離開了泉水邊。') };
+  let title;
+  let text;
+  let ic;
+  let options;
+  if (kind === 'card') {
+    title = '翻開泉底的牌';
+    ic = 'cup';
+    text = '泉水裡浮著一張蓋住的塔羅牌。翻開它：正位的話就歸你，逆位的話泉水會收走 5 金。';
+    options = [
+      {
+        label: '翻開它',
+        run: () => {
+          const card = randomTarot(rng);
+          if (!card) return eventDone('泉底空空的，什麼都沒有。');
+          const el = tarotCard(card, { mini: true });
+          if (card.reversed) {
+            const lost = Math.min(5, run.gold);
+            run.gold -= lost;
+            sfx.lose();
+            eventDone(`是逆位的${tarotById(card.id).name}……泉水收走了 ${lost} 金。`, el);
+          } else if (handFull(run)) {
+            eventDone(`是正位的${tarotById(card.id).name}，可惜牌位滿了，只能看著它沉回泉底。`, el);
+          } else {
+            run.tarots.push(card);
+            sfx.coin();
+            eventDone(`是正位的${tarotById(card.id).name}！它歸你了。`, el);
+          }
+        },
+      },
+      leave,
+    ];
+  } else if (kind === 'wish') {
+    title = '許願池';
+    ic = 'coin';
+    text = '投 5 金許個願：有一半的機會，泉水會還你 15 金。';
+    options = [
+      {
+        label: '投 5 金',
+        ok: run.gold >= 5,
+        run: () => {
+          run.gold -= 5;
+          if (rng() < 0.5) {
+            run.gold += 15;
+            sfx.coin();
+            eventDone('泉水閃了一下光——還你 15 金！');
+          } else {
+            sfx.nope();
+            eventDone('泉水靜悄悄的，什麼都沒發生。');
+          }
+        },
+      },
+      { ...leave, label: '不許願，離開' },
+    ];
+  } else {
+    title = '神秘商人';
+    ic = 'deck';
+    text = '泉邊披著斗篷的商人，想用一張隨機的塔羅牌換你手上的一張。換到什麼、是正位還是逆位，都要看命運。';
+    options = [
+      {
+        label: '選一張來交換',
+        ok: run.tarots.length > 0,
+        run: () => {
+          const pick = $('event-pick');
+          pick.hidden = false;
+          pick.replaceChildren(
+            ...run.tarots.map((held, i) => {
+              const el = tarotCard(held, { mini: true });
+              el.onclick = () => {
+                const card = randomTarot(rng);
+                if (!card) return eventDone('商人翻了翻袋子：「我沒有你沒有的牌了。」');
+                run.tarots.splice(i, 1, card);
+                sfx.magic();
+                eventDone(`用${tarotById(held.id).name}換到了${card.reversed ? '逆位' : '正位'}的${tarotById(card.id).name}。`, tarotCard(card, { mini: true }));
+              };
+              return el;
+            }),
+          );
+          for (const b of $('event-options').querySelectorAll('button')) b.disabled = true;
+        },
+      },
+      { ...leave, label: '不交換，離開' },
+    ];
+  }
+  $('event-title').textContent = title;
+  $('event-icon').innerHTML = icon(ic);
+  $('event-text').textContent = text;
+  $('event-options').replaceChildren(
+    ...options.map((o) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-dark';
+      b.textContent = o.label;
+      b.disabled = o.ok === false;
+      b.onclick = o.run;
+      return b;
+    }),
+  );
+  updateHud();
+}
+
+function eventDone(text, cardEl = null) {
+  for (const b of $('event-options').querySelectorAll('button')) b.disabled = true;
+  $('event-pick').hidden = !cardEl;
+  if (cardEl) $('event-pick').replaceChildren(cardEl);
+  $('event-result').textContent = text;
+  $('event-result').hidden = false;
+  $('btn-event-leave').hidden = false;
+  bump('stat-gold');
+  updateHud();
+}
+
+$('btn-rest-leave').addEventListener('click', () => openMap());
+$('btn-event-leave').addEventListener('click', () => openMap());
 
 // ---------- 規則說明 ----------
 
@@ -787,7 +1055,6 @@ function closeHelp() {
 // ---------- 客人：HUD 左邊的頭像，看分數節奏、步數、連鎖換心情並說話 ----------
 
 const portrait = new Portrait($('customer-canvas'), 60);
-const shopPortrait = new Portrait($('shop-customer'), 64);
 let bubbleTimer = 0;
 let moodTimer = 0;
 
@@ -914,7 +1181,7 @@ $('btn-newkind').addEventListener('click', () => {
 
 $('btn-start').addEventListener('click', () => {
   sfx.click();
-  startLevel();
+  openMap();
 });
 
 $('btn-reroll').addEventListener('click', () => {
@@ -928,7 +1195,7 @@ $('btn-reroll').addEventListener('click', () => {
 
 $('btn-leave').addEventListener('click', () => {
   sfx.click();
-  startLevel();
+  openMap();
 });
 
 $('btn-shuffle').addEventListener('click', async () => {
