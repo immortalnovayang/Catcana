@@ -31,6 +31,7 @@ const PATHS = {
   chat: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   arrow: '<path d="M4 12h15M13 6l6 6-6 6"/>',
+  spark: '<path d="M12 2.5l2.3 7.2 7.2 2.3-7.2 2.3L12 21.5l-2.3-7.2L2.5 12l7.2-2.3z"/>',
   music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
   ball: '<circle cx="12" cy="10" r="7"/><path d="M6.5 20h11l-1.6-3.2H8.1z"/><path d="M9 7.5a3.5 3.5 0 0 1 3-2"/>',
   lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',

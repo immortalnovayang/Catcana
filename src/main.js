@@ -18,12 +18,14 @@ import {
   createRun,
   currentLevel,
   finishLevel,
-  isLastLevel,
   levelSeed,
   levelShuffles,
   levelSteps,
   moveTo,
+  OVERTIME_COST,
   OWL_EVERY,
+  STAR3,
+  starRating,
   OWL_SLEEPS,
   shopSeed,
 } from './run.js';
@@ -33,7 +35,7 @@ import { CRYSTAL_INFO } from './gems.js';
 import { TAROT } from './tarot.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.11 · 星盤';
+const VERSION = 'v0.12 · 星光';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -221,11 +223,19 @@ function updateHud() {
   $('stat-steps').textContent = state.stepsLeft;
   $('steps-card').classList.toggle('low', where === 'play' && state.stepsLeft <= 3);
   $('stat-gold').textContent = run.gold;
-  $('score-bar').style.width = `${level.target ? Math.min(100, (state.score / level.target) * 100) : 0}%`;
+  $('stat-light').textContent = run.starlight;
+  $('light-row').classList.toggle('low', run.starlight <= 8);
+  // 分數條的終點是三星（目標 × 1.5），上面標出一、二、三星的位置
+  $('score-bar').style.width = `${level.target ? Math.min(100, (state.score / (level.target * STAR3)) * 100) : 0}%`;
+  const stars = level.target ? starRating(state.score, level.target) : 0;
+  for (const el of document.querySelectorAll('.bar-star')) el.classList.toggle('on', stars >= Number(el.dataset.s));
   $('score-card').classList.toggle('done', state.score >= level.target);
 
   const locked = state.busy || state.over || state.pick !== null;
   skillButton($('btn-shuffle'), 'shuffle', '洗牌', state.shuffles, { disabled: state.shuffles === 0 || locked });
+  // 達標後可以收工：剩下的步數換成金幣
+  $('btn-finish').hidden = where !== 'play' || state.over || state.score < level.target;
+  skillButton($('btn-finish'), 'coin', '收工', state.stepsLeft, { disabled: locked });
   $('btn-magic').hidden = !fx || fx.magicianUses === 0;
   skillButton($('btn-magic'), 'hat', state.pick ? '取消' : '魔術', state.magicLeft, { picking: Boolean(state.pick), disabled: state.pick ? false : state.magicLeft === 0 || locked });
   $('btn-tower').hidden = !fx || fx.towerUses === 0;
@@ -328,6 +338,8 @@ function startLevel() {
   state.requeueLeft = fx.queueRerolls;
   state.totalSteps = state.stepsLeft;
   state.lastChain = 0;
+  state.reached = false;
+  $('overtime').hidden = true;
   showScreen('play');
   meetCustomer();
   placeLevelSpecials();
@@ -524,10 +536,22 @@ async function resolve(groups, { swapCells = [], first = null } = {}) {
 
 async function afterResolve() {
   const target = currentLevel(run).target;
-  if (state.score >= target || state.stepsLeft === 0) {
+  // 三星就自動結束；步數用完時還沒達標可以加時
+  if (state.score >= target * STAR3) {
     state.busy = false;
-    endLevel(state.score >= target);
+    endLevel();
     return;
+  }
+  if (state.stepsLeft === 0) {
+    state.busy = false;
+    if (state.score < target && run.starlight > OVERTIME_COST) offerOvertime();
+    else endLevel();
+    return;
+  }
+  if (!state.reached && state.score >= target) {
+    state.reached = true;
+    view.popup('達標！繼續衝三星，或按收工', 'note');
+    sfx.coin();
   }
   if (!state.board.hasValidMove()) {
     view.popup('沒有步可走，自動洗牌', 'note');
@@ -591,69 +615,112 @@ async function onPick(cell) {
 
 // ---------- 結算 ----------
 
-function endLevel(won) {
+// 步數用完還沒達標：要不要用星光換一步
+function offerOvertime() {
+  state.busy = true; // 對話框開著時不能動盤面
+  const lack = currentLevel(run).target - state.score;
+  $('overtime-text').textContent = `還差 ${lack} 分。要用 ${OVERTIME_COST} 點星光換 1 步嗎？（目前星光 ${run.starlight}）`;
+  $('btn-overtime').innerHTML = `${icon('spark')}<span>加時占卜 −${OVERTIME_COST}</span>`;
+  $('overtime').hidden = false;
+  sfx.sleep();
+}
+
+$('btn-overtime').addEventListener('click', () => {
+  if (run.starlight <= OVERTIME_COST) return;
+  run.starlight -= OVERTIME_COST;
+  state.stepsLeft += 1;
+  $('overtime').hidden = true;
+  state.busy = false;
+  bump('stat-light');
+  sfx.magic();
+  updateHud();
+  scheduleHint();
+});
+$('btn-overtime-end').addEventListener('click', () => {
+  $('overtime').hidden = true;
+  state.busy = false;
+  endLevel();
+});
+$('btn-finish').addEventListener('click', () => {
+  if (state.busy || state.over || state.score < currentLevel(run).target) return;
+  sfx.click();
+  endLevel();
+});
+
+function endLevel() {
+  if (state.over) return;
   state.over = true;
   clearTimeout(hintTimer);
+  $('overtime').hidden = true;
   const level = currentLevel(run);
-  const last = isLastLevel(run);
+  const boss = level.kind === 'boss';
+  const res = finishLevel(run, state.score, state.stepsLeft, fx);
+  const cleared = boss && res.passed; // 打倒 Boss，整局通關
+  const runOver = res.dead || cleared;
 
   countUp($('result-score'), state.score);
   $('result-target').textContent = level.target;
   $('result-steps').textContent = state.stepsLeft;
   $('result-chain').textContent = state.bestChain;
-  $('result').classList.toggle('lost', !won);
-  const rewardEl = $('result-reward');
-  rewardEl.replaceChildren();
-  const mainBtn = $('btn-result-main');
+  $('result-stars').innerHTML = [1, 2, 3].map((i) => `<span class="${i <= res.stars ? 'on' : ''}">${icon('star')}</span>`).join('');
+  $('result').classList.toggle('lost', !res.passed);
 
-  if (won) {
-    const reward = finishLevel(run, state.score, state.stepsLeft, fx);
-    const rows = [
-      ['過關獎勵', reward.base],
-      [`剩餘 ${reward.steps} 步`, reward.steps],
-      ['利息', reward.interest],
-    ];
-    for (const [label, amount] of rows) {
-      if (!amount) continue;
-      const li = document.createElement('li');
-      li.innerHTML = `<span>${label}</span><span class="amount">+${amount}${icon('coin')}</span>`;
-      rewardEl.appendChild(li);
-    }
-    if (last) {
-      $('result-title').textContent = '全部占卜成功！';
-      $('result-note').textContent = `帶著 ${run.gold} 金幣通關。`;
-      mainBtn.textContent = '再挑戰一局';
-      mainBtn.onclick = () => newRun(randomSeed());
-    } else {
-      $('result-title').textContent = '占卜成功！';
-      const elite = level.kind === 'elite';
-      $('result-note').textContent = elite ? `現在有 ${run.gold} 金幣。難纏客人送你一張塔羅牌當謝禮！` : `現在有 ${run.gold} 金幣。`;
-      mainBtn.textContent = elite ? '領取謝禮' : '回到星盤';
-      mainBtn.onclick = () => {
-        sfx.click();
-        if (elite) openShop({ mode: 'gift' });
-        else openMap();
-      };
-    }
-  } else {
-    $('result-title').textContent = '占卜失敗…';
-    $('result-note').textContent = `差 ${level.target - state.score} 分。`;
+  const rows = [];
+  if (res.damage) rows.push(['星光', `−${res.damage}`, 'light minus', 'spark']);
+  if (res.heal) rows.push(['完美占卜', `+${res.heal}`, 'light', 'spark']);
+  if (res.base) rows.push([res.passed ? '過關獎勵' : '安慰獎勵', `+${res.base}`, '', 'coin']);
+  if (res.steps) rows.push([`剩餘 ${res.steps} 步`, `+${res.steps}`, '', 'coin']);
+  if (res.interest) rows.push(['利息', `+${res.interest}`, '', 'coin']);
+  $('result-reward').innerHTML = rows.map(([label, amount, cls, ic]) => `<li><span>${label}</span><span class="amount ${cls}">${amount}${icon(ic)}</span></li>`).join('');
+
+  const mainBtn = $('btn-result-main');
+  const elite = level.kind === 'elite' && res.passed;
+  let title;
+  let note = `星光 ${run.starlight} / ${run.maxStarlight} · 金幣 ${run.gold}`;
+  if (res.dead) {
+    title = '星光耗盡…';
+    note = '星光歸零，這局就到這裡了。';
     mainBtn.textContent = '重新開始一局';
     mainBtn.onclick = () => newRun(randomSeed());
+  } else if (cleared) {
+    title = '全部占卜成功！';
+    note = `帶著 ${run.starlight} 點星光、${run.gold} 金幣點亮了整個牡羊座。`;
+    mainBtn.textContent = '再挑戰一局';
+    mainBtn.onclick = () => newRun(randomSeed());
+  } else if (boss) {
+    title = '貓頭鷹還醒著…';
+    note = `扣了 ${res.damage} 點星光，剩 ${run.starlight}。換個盤面再挑戰一次！`;
+    mainBtn.textContent = '再挑戰貓頭鷹';
+    mainBtn.onclick = () => {
+      sfx.click();
+      run.retries++;
+      startLevel();
+    };
+  } else {
+    title = res.stars === 3 ? '完美占卜！' : res.passed ? '占卜成功！' : '客人不太滿意…';
+    if (elite) note += '。難纏客人送你一張塔羅牌當謝禮！';
+    mainBtn.textContent = elite ? '領取謝禮' : '回到星盤';
+    mainBtn.onclick = () => {
+      sfx.click();
+      if (elite) openShop({ mode: 'gift' });
+      else openMap();
+    };
   }
-  if (won) setCustomerMood('satisfied');
-  else setCustomerMood(level.boss ? 'annoyed' : 'worried', { line: lineFor(level.customer, 'lose') });
-  const runOver = !won || last;
+  $('result-title').textContent = title;
+  $('result-note').textContent = note;
+
+  if (res.passed) setCustomerMood('satisfied');
+  else setCustomerMood(boss ? 'annoyed' : 'worried', { line: lineFor(level.customer, 'lose') });
   $('result').classList.toggle('run-over', runOver);
-  renderRunSummary(runOver, won);
+  renderRunSummary(runOver, cleared);
   updateHud();
   // 等最後的得分動畫跑完再跳出結算
   setTimeout(() => {
     $('result').hidden = false;
     music.duck();
-    if (won) sfx.win();
+    if (res.passed) sfx.win();
     else sfx.lose();
-    if (won && last) view.celebrate();
+    if (cleared) view.celebrate();
   }, 500);
 }
 
@@ -664,11 +731,10 @@ function runResultText(cleared) {
   return cleared ? '點亮了整個牡羊座' : `走到星盤第 ${NODE_BY_ID[run.node].floor} 層（過了 ${run.cleared} 關）`;
 }
 
-function renderRunSummary(runOver, won) {
+function renderRunSummary(runOver, cleared) {
   const box = $('run-summary');
   box.hidden = !runOver;
   if (!runOver) return;
-  const cleared = won && isLastLevel(run);
   const total = run.totalScore + (cleared ? 0 : state.score);
   $('sum-result').textContent = runResultText(cleared);
   countUp($('sum-total'), total);
@@ -841,7 +907,7 @@ function openRest() {
   const options = [
     { id: 'flip', icon: 'restart', name: '翻轉命運', desc: '選一張塔羅牌，正位變逆位、逆位變正位。', ok: run.tarots.length > 0 },
     { id: 'polish', icon: 'star', name: '擦亮水晶', desc: '選一種水晶，之後基礎分永久 +2。', ok: true },
-    { id: 'breath', icon: 'steps', name: '深呼吸', desc: '下一關多 3 步。', ok: true },
+    { id: 'heal', icon: 'spark', name: '沐浴星光', desc: `回復 10 點星光（目前 ${run.starlight} / ${run.maxStarlight}）。`, ok: run.starlight < run.maxStarlight },
   ];
   const box = $('rest-options');
   box.replaceChildren(
@@ -860,9 +926,11 @@ function openRest() {
 
 function chooseRest(id) {
   const pick = $('rest-pick');
-  if (id === 'breath') {
-    run.nextBonusSteps += 3;
-    return restDone('深呼吸——下一關多 3 步。');
+  if (id === 'heal') {
+    const before = run.starlight;
+    run.starlight = Math.min(run.maxStarlight, run.starlight + 10);
+    bump('stat-light');
+    return restDone(`星光回復了 ${run.starlight - before} 點，現在是 ${run.starlight}。`);
   }
   pick.hidden = false;
   if (id === 'flip') {
@@ -1291,6 +1359,7 @@ renderVolume();
 // 靜態圖示
 $('favicon').href = FAVICON;
 $('gold-icon').innerHTML = icon('coin');
+$('light-icon').innerHTML = icon('spark');
 $('shop-icon').innerHTML = icon('ball');
 document.querySelectorAll('.locked').forEach((el) => (el.innerHTML = icon('lock')));
 

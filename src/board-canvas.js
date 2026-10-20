@@ -751,7 +751,8 @@ export class BoardView {
     this.canvas.width = Math.round(this.W * this.dpr);
     this.canvas.height = Math.round(this.H * this.dpr);
     this.cacheCell = 0; // 像素密度可能變了，快取要重做
-    this.tent = this.buildTent();
+    // 視窗大小是 0（例如被收起來）時先不畫帳篷，否則 drawImage 會報錯
+    this.tent = this.W > 0 && this.H > 0 ? this.buildTent() : null;
   }
 
   // 占卜帳篷：兩側絨布帷幔、上方荷葉邊垂簾與流蘇、底部燭光。只在尺寸改變時重畫
@@ -1475,7 +1476,7 @@ export class BoardView {
       ctx.stroke();
     }
     ctx.globalCompositeOperation = 'source-over';
-    if (this.tent) ctx.drawImage(this.tent, 0, 0, W, H);
+    if (this.tent?.width) ctx.drawImage(this.tent, 0, 0, W, H);
   }
 
   drawRays() {

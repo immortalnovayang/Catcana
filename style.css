@@ -2186,3 +2186,188 @@ body.in-menu .hud {
     min-height: 100px;
   }
 }
+
+/* ---------- 星光與三星 ---------- */
+
+.res-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 10px;
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  text-shadow: var(--ink-outline);
+}
+
+.res-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.res-row.gold {
+  color: var(--gold);
+}
+
+.res-row.light {
+  color: #ffc2f0;
+}
+
+.res-icon .ic {
+  width: 17px;
+  height: 17px;
+}
+
+.res-row.light .ic {
+  color: #ff9ee8;
+  fill: rgba(255, 158, 232, 0.35);
+}
+
+.res-row.light.low {
+  color: #ff7a8c;
+  animation: pulse-text 1s ease-in-out infinite;
+}
+
+@keyframes pulse-text {
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.bar-wrap {
+  position: relative;
+  margin-top: 4px;
+}
+
+.bar-wrap .bar {
+  margin-top: 0;
+}
+
+.bar-star {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  color: rgba(255, 255, 255, 0.35);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7));
+  transition: color 200ms ease, transform 200ms ease;
+}
+
+.bar-star[data-s='1'] {
+  left: 40%;
+}
+
+.bar-star[data-s='2'] {
+  left: 66.67%;
+}
+
+.bar-star[data-s='3'] {
+  left: calc(100% - 8px);
+}
+
+.bar-star .ic {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.bar-star.on {
+  color: var(--gold);
+  transform: scale(1.2);
+}
+
+.result-stars {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 0 0 6px;
+}
+
+.result-stars span {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.result-stars span .ic {
+  width: 34px;
+  height: 34px;
+  fill: currentColor;
+}
+
+.result-stars span.on {
+  color: var(--gold);
+  filter: drop-shadow(0 0 8px rgba(255, 211, 110, 0.8));
+  animation: star-pop 420ms cubic-bezier(0.2, 1.6, 0.4, 1) backwards;
+}
+
+.result-stars span.on:nth-child(2) {
+  animation-delay: 150ms;
+}
+
+.result-stars span.on:nth-child(3) {
+  animation-delay: 300ms;
+}
+
+@keyframes star-pop {
+  from {
+    transform: scale(0) rotate(-40deg);
+  }
+}
+
+.reward .amount.light {
+  color: #ffc2f0;
+}
+
+.reward .amount.minus {
+  color: #ff8a9a;
+}
+
+.overtime {
+  position: absolute;
+  inset: -6px;
+  z-index: 5;
+  display: flex;
+  padding: 12px;
+  border-radius: 20px;
+  background: rgba(8, 5, 22, 0.6);
+  animation: fade-in 200ms ease;
+}
+
+.overtime-card {
+  margin: auto;
+  width: min(100%, 300px);
+  padding: 16px;
+  text-align: center;
+  border-radius: 18px;
+  border: 2px solid #ff9ee8;
+  background: linear-gradient(180deg, #55206a, #250c38);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+  animation: pop-in 280ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.overtime-card h3 {
+  margin: 0 0 6px;
+  color: #ffc2f0;
+}
+
+.overtime-card p {
+  margin: 0 0 14px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.overtime-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.skill-finish {
+  color: #fff;
+  background: radial-gradient(circle at 35% 28%, #a6f0c4, #30a46c 55%, #1a6b44);
+  box-shadow: 0 4px 0 #0c3d26, 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  animation: card-glow 1.4s ease-in-out infinite;
+}

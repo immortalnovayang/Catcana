@@ -31,15 +31,18 @@
         <button id="customer-chip" type="button" class="customer-chip" aria-label="客人"><canvas id="customer-canvas"></canvas></button>
         <div id="score-card" class="panel score">
           <div class="score-line"><span id="stat-score">0</span><span class="of">/ <span id="stat-target">0</span></span></div>
-          <div class="bar"><div id="score-bar" class="bar-fill"></div></div>
+          <div class="bar-wrap">
+            <div class="bar"><div id="score-bar" class="bar-fill"></div></div>
+            <span class="bar-star" data-s="1"></span><span class="bar-star" data-s="2"></span><span class="bar-star" data-s="3"></span>
+          </div>
         </div>
         <div id="steps-card" class="steps-badge" aria-label="剩餘步數">
           <span id="stat-steps">0</span>
           <small>步</small>
         </div>
-        <div id="gold-card" class="panel gold-panel" aria-label="金幣">
-          <span id="gold-icon" class="gold-icon"></span>
-          <span id="stat-gold">0</span>
+        <div id="gold-card" class="panel res-panel" aria-label="星光與金幣">
+          <div id="light-row" class="res-row light" title="星光：沒達標會扣，歸零就結束"><span id="light-icon" class="res-icon"></span><span id="stat-light">0</span></div>
+          <div class="res-row gold"><span id="gold-icon" class="res-icon"></span><span id="stat-gold">0</span></div>
         </div>
         <div id="customer-bubble" class="customer-bubble" hidden><strong id="customer-name"></strong><span id="customer-line"></span></div>
       </section>
@@ -77,9 +80,20 @@
         <div class="board-area">
           <div class="board-wrap">
             <div id="board" class="board" role="application" aria-label="三消盤面"></div>
+            <div id="overtime" class="overtime" hidden>
+              <div class="overtime-card">
+                <h3>步數用完了</h3>
+                <p id="overtime-text"></p>
+                <div class="overtime-actions">
+                  <button id="btn-overtime" type="button" class="btn btn-gold"></button>
+                  <button id="btn-overtime-end" type="button" class="btn btn-dark">結束這關</button>
+                </div>
+              </div>
+            </div>
             <div id="result" class="result" hidden>
               <div class="result-card">
                 <div class="ribbon"><h2 id="result-title"></h2></div>
+                <div id="result-stars" class="result-stars"></div>
                 <dl class="result-stats">
                   <div><dt>得分</dt><dd id="result-score"></dd></div>
                   <div><dt>目標</dt><dd id="result-target"></dd></div>
@@ -116,6 +130,7 @@
           <button id="btn-magic" type="button" class="skill" hidden></button>
           <button id="btn-tower" type="button" class="skill" hidden></button>
           <button id="btn-requeue" type="button" class="skill" hidden></button>
+          <button id="btn-finish" type="button" class="skill skill-finish" hidden></button>
           <button id="btn-shuffle" type="button" class="skill skill-main"></button>
           <button id="btn-restart" type="button" class="skill skill-small" aria-label="重新開始"></button>
         </nav>
@@ -189,8 +204,11 @@
         <ul class="rules">
           <li>滑動水晶，或先點一顆再點旁邊那顆來交換。三顆同色連成一線就會消除。</li>
           <li>得分 =（水晶分數 + 形狀加值）× 連鎖倍率。4 連、5 連、L 形、T 形有加值，連鎖越多層倍率越高。</li>
-          <li>一局有三位客人，最後一位是 Boss。過關可以拿金幣，剩下的步數也會換成金幣。</li>
-          <li>關卡之間會進占卜室，三張牌選一張帶走。塔羅牌最多 5 張，點一下可以看效果。逆位比較強，但有代價。</li>
+          <li>一局走一張星盤：每步選一顆相鄰的星，最上面最亮的是 Boss。路上有客人、占卜室、命運之泉、星光冥想等。</li>
+          <li>每關依分數給星：目標的 60% 一顆星、達到目標兩顆星（過關）、1.5 倍三顆星（完美，回 2 點星光）。</li>
+          <li>沒達標不會直接結束，而是扣「星光」，差越多扣越多；星光歸零整局才結束。步數用完時可以花 2 點星光「加時占卜」多走一步。</li>
+          <li>達標後可以繼續衝三星，也可以按「收工」把剩下的步數換成金幣。</li>
+          <li>塔羅牌最多 5 張，點一下可以看效果。逆位比較強，但有代價。</li>
           <li>4 連、L 形、T 形、5 連會生出特殊水晶，再消掉它就會引爆，詳見下方圖鑑。</li>
         </ul>
         <div id="codex" class="codex"></div>

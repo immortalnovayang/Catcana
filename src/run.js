@@ -13,6 +13,29 @@ export const OWL_EVERY = 3;
 export const OWL_SLEEPS = 2;
 const OWL_RULE = '每 3 步，隨機 2 顆水晶睡著（旁邊有消除就會醒來）';
 
+// ---------- 星光（血量）與三星 ----------
+// 關卡沒達標不會直接結束，而是扣星光；星光歸零整局才失敗
+export const START_STARLIGHT = 30;
+export const STAR1 = 0.6; // ★：目標的 60%
+export const STAR3 = 1.5; // ★★★：目標的 150%（一達到就自動結束）
+export const OVERTIME_COST = 2; // 加時占卜：2 點星光換 1 步
+export const PERFECT_HEAL = 2; // 三星回復的星光
+
+// 0～3 顆星；★★ 就是達標
+export function starRating(score, target) {
+  if (score >= target * STAR3) return 3;
+  if (score >= target) return 2;
+  if (score >= target * STAR1) return 1;
+  return 0;
+}
+
+// 沒達標扣的星光：差越多扣越多，Boss 加倍
+export function starlightDamage(score, target, boss = false) {
+  if (score >= target) return 0;
+  const dmg = Math.ceil((1 - score / target) * 14) + 2;
+  return boss ? dmg * 2 : dmg;
+}
+
 // 模擬器顯示過關率用的代表性關卡（實際目標依星盤層數，見 starmap.js 的 targetFor）
 export const LEVELS = [
   { name: '第 1 層客人', target: targetFor(1, 'customer') },
@@ -31,6 +54,9 @@ export function createRun(seed, character = DEFAULT_CHARACTER) {
     path: ['S'], // 走過的路
     seen: [], // 看過的星（遠處的星一開始是「？」）
     gold: START_GOLD,
+    starlight: START_STARLIGHT,
+    maxStarlight: START_STARLIGHT,
+    retries: 0, // Boss 重新挑戰的次數（換一個開局）
     base: { ...BASE_SCORE }, // 各水晶的基礎分，會被行星、冥想強化
     bonusSteps: 0,
     bonusShuffles: 0,
@@ -86,27 +112,39 @@ function nodeSalt(run) {
 }
 
 export function levelSeed(run) {
-  return (Math.imul(run.seed + 1, 2654435761) + nodeSalt(run) * 97) >>> 0;
+  return (Math.imul(run.seed + 1, 2654435761) + nodeSalt(run) * 97 + run.retries * 7919) >>> 0;
 }
 
 export function shopSeed(run) {
   return (Math.imul(run.seed + 7, 40503) + nodeSalt(run) * 131) >>> 0;
 }
 
-// 過關獎勵：基本獎勵 + 剩餘步數 1 步 1 金 + 利息（以領獎前的存款計算，錢幣十會改上限與倍數）
-export function levelReward(run, stepsLeft, fx) {
-  const base = currentLevel(run).reward;
+// 關卡獎勵：過關拿基本獎勵 + 剩餘步數 1 步 1 金；沒過關只拿一半的基本獎勵；利息照算
+// （利息以領獎前的存款計算，錢幣十會改上限與倍數）
+export function levelReward(run, stepsLeft, fx, passed = true) {
+  const full = currentLevel(run).reward;
+  const base = passed ? full : Math.floor(full / 2);
+  const steps = passed ? stepsLeft : 0;
   const interest = Math.round(Math.min(fx.interestCap, Math.floor(run.gold / fx.interestPer)) * fx.interestMult);
-  return { base, steps: stepsLeft, interest, total: base + stepsLeft + interest };
+  return { base, steps, interest, total: base + steps + interest };
 }
 
+// 一關結束：算星等、星光增減與金幣。回傳結算內容
 export function finishLevel(run, score, stepsLeft, fx) {
-  const reward = levelReward(run, stepsLeft, fx);
+  const level = currentLevel(run);
+  const stars = starRating(score, level.target);
+  const passed = stars >= 2;
+  const reward = levelReward(run, stepsLeft, fx, passed);
+  const damage = starlightDamage(score, level.target, level.kind === 'boss');
+  const heal = stars === 3 ? Math.min(PERFECT_HEAL, run.maxStarlight - run.starlight) : 0;
   run.gold += reward.total;
-  run.totalScore += score;
-  run.cleared++;
+  run.starlight = Math.max(0, run.starlight - damage + heal);
   run.nextBonusSteps = 0;
-  return reward;
+  if (passed) {
+    run.totalScore += score;
+    run.cleared++;
+  }
+  return { ...reward, stars, passed, damage, heal, dead: run.starlight <= 0 };
 }
 
 // 走到下一顆星
