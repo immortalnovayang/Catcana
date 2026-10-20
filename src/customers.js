@@ -1,4 +1,4 @@
-// 客人：三位客人全部用 Canvas 即時繪製，跟盤面水晶同一種風格（粗輪廓、大眼睛）
+// 客人：全部用 Canvas 即時繪製，跟盤面水晶同一種風格（粗輪廓、大眼睛）
 // 遊戲 HUD 的頭像與 demo/customers.html 試作頁共用這份
 // 單位座標：角色大約落在 x -1.1～1.1、y -1.2～1.1 之間，畫的時候再依畫布大小縮放
 const TAU = Math.PI * 2;
@@ -691,6 +691,519 @@ function drawHedgehog(g, t, mood) {
   if (surprised) exclaim(g, 0.7, -0.8, t);
 }
 
+// ---------- 松鼠奶奶（忘了過冬的橡果埋在哪） ----------
+
+function drawSquirrel(g, t, mood) {
+  const happy = mood === 'happy' || mood === 'satisfied';
+  const worried = mood === 'worried';
+  const surprised = mood === 'surprised';
+  const fur = '#d98b4f';
+  const cream = '#fbe6c8';
+  const dark = '#8a4f28';
+
+  g.save();
+  g.translate(0, Math.sin(t * (happy ? 4 : 1.6)) * (happy ? 0.035 : 0.02));
+
+  // 大尾巴在身後：開心時搖、著急時垂下、驚訝時炸毛
+  g.save();
+  g.translate(0.38, 0.6);
+  g.rotate((worried ? 0.4 : 0) + Math.sin(t * (happy ? 5 : 1.8)) * (happy ? 0.12 : 0.05));
+  const puff = surprised ? 1.15 : 1;
+  g.scale(puff, puff);
+  g.beginPath();
+  g.moveTo(-0.05, 0.12);
+  g.bezierCurveTo(0.6, 0.12, 0.78, -0.5, 0.45, -0.98);
+  g.bezierCurveTo(0.28, -1.18, -0.08, -1.02, 0.04, -0.8);
+  g.bezierCurveTo(0.34, -0.55, 0.2, -0.2, -0.15, -0.08);
+  g.closePath();
+  blob(g, fur);
+  g.beginPath();
+  g.moveTo(0.02, 0.02);
+  g.bezierCurveTo(0.45, -0.05, 0.52, -0.5, 0.36, -0.82);
+  g.lineWidth = 0.07;
+  g.strokeStyle = '#f2b27a';
+  g.lineCap = 'round';
+  g.stroke();
+  g.restore();
+
+  // 耳朵與耳尖的毛
+  for (const s of [-1, 1]) {
+    g.save();
+    g.translate(s * 0.3, -0.36);
+    g.rotate(s * (worried ? 0.55 : 0.2));
+    ell(g, 0, -0.12, 0.11, 0.17);
+    blob(g, fur);
+    ell(g, 0, -0.1, 0.055, 0.1);
+    g.fillStyle = '#f3b38a';
+    g.fill();
+    line(g, [
+      [0, -0.28],
+      [s * 0.04, -0.4],
+    ], 0.05, dark);
+    g.restore();
+  }
+
+  // 身體、肚子、針織披肩
+  ell(g, 0, 0.72, 0.42, 0.34);
+  blob(g, fur);
+  ell(g, 0, 0.78, 0.26, 0.24);
+  blob(g, cream, 0.03);
+  g.beginPath();
+  g.moveTo(-0.38, 0.4);
+  g.lineTo(0.38, 0.4);
+  g.lineTo(0, 0.66);
+  g.closePath();
+  blob(g, '#8a6bc9', 0.035);
+  for (let i = -2; i <= 2; i++) {
+    ell(g, i * 0.12, 0.45, 0.025, 0.025);
+    g.fillStyle = '#b9a2ee';
+    g.fill();
+  }
+
+  // 頭與口鼻
+  ell(g, 0, -0.02, 0.5, 0.45);
+  blob(g, fur);
+  ell(g, 0, 0.16, 0.25, 0.17);
+  blob(g, cream, 0.03);
+  blush(g, -0.33, 0.1, 0.08);
+  blush(g, 0.33, 0.1, 0.08);
+
+  // 眼睛 + 圓眼鏡
+  const blink = (t % 4.3) < 0.12;
+  if (mood === 'satisfied') {
+    closedEye(g, -0.19, -0.06, 0.09, true);
+    closedEye(g, 0.19, -0.06, 0.09, true);
+  } else if (blink && !surprised) {
+    closedEye(g, -0.19, -0.06, 0.09);
+    closedEye(g, 0.19, -0.06, 0.09);
+  } else {
+    const look = worried ? [Math.sin(t * 2.5), 0.2] : happy ? [0, -0.2] : [Math.sin(t * 0.6) * 0.5, 0.1];
+    eye(g, -0.19, -0.06, 0.11, { wide: surprised ? 1.2 : 1, look, pupil: '#3a2212' });
+    eye(g, 0.19, -0.06, 0.11, { wide: surprised ? 1.2 : 1, look, pupil: '#3a2212' });
+  }
+  const slip = surprised ? 0.06 : 0; // 驚訝時眼鏡滑下來
+  for (const s of [-1, 1]) {
+    ell(g, s * 0.19, -0.06 + slip, 0.16, 0.16);
+    g.lineWidth = 0.03;
+    g.strokeStyle = '#c9a24a';
+    g.stroke();
+  }
+  line(g, [
+    [-0.04, -0.08 + slip],
+    [0.04, -0.08 + slip],
+  ], 0.03, '#c9a24a');
+  if (worried) {
+    line(g, [
+      [-0.3, -0.27],
+      [-0.1, -0.31],
+    ], 0.035);
+    line(g, [
+      [0.3, -0.27],
+      [0.1, -0.31],
+    ], 0.035);
+  }
+
+  // 鼻子、嘴、門牙
+  ell(g, 0, 0.09, 0.05, 0.035);
+  blob(g, dark, 0.02);
+  if (surprised) {
+    ell(g, 0, 0.24, 0.05, 0.06);
+    blob(g, '#6b1f3a', 0.025);
+  } else if (worried) {
+    line(g, [
+      [-0.07, 0.24],
+      [0, 0.2],
+      [0.07, 0.24],
+    ], 0.03);
+  } else {
+    line(g, [
+      [-0.08, 0.17],
+      [-0.04, 0.2],
+      [0, 0.16],
+      [0.04, 0.2],
+      [0.08, 0.17],
+    ], 0.03);
+    g.beginPath();
+    g.rect(-0.035, 0.18, 0.07, 0.06);
+    blob(g, '#fff', 0.02);
+    line(g, [
+      [0, 0.18],
+      [0, 0.24],
+    ], 0.015);
+  }
+
+  // 抱著的橡果
+  g.save();
+  g.translate(0, 0.64);
+  g.rotate(Math.sin(t * 1.4) * 0.05 + (happy ? 0.1 : 0));
+  ell(g, 0, 0.04, 0.11, 0.12);
+  blob(g, '#c07a3c', 0.03);
+  g.beginPath();
+  g.ellipse(0, -0.04, 0.13, 0.07, 0, Math.PI, TAU);
+  g.closePath();
+  blob(g, '#6e4320', 0.03);
+  line(g, [
+    [0, -0.11],
+    [0.03, -0.17],
+  ], 0.03);
+  for (const s of [-1, 1]) {
+    ell(g, s * 0.13, 0.05, 0.065, 0.055);
+    blob(g, fur, 0.03);
+  }
+  g.restore();
+  g.restore();
+
+  if (happy) sparkles(g, t, '#ffe6a6');
+  if (worried) sweat(g, 0.48, -0.3, t);
+  if (surprised) exclaim(g, -0.7, -0.8, t);
+}
+
+// ---------- 小狐狸（魔術師學徒，明天第一次登台） ----------
+
+function star5(g, x, y, r) {
+  g.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i / 10) * TAU;
+    const rr = i % 2 ? r * 0.45 : r;
+    g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  g.closePath();
+}
+
+function drawFox(g, t, mood) {
+  const happy = mood === 'happy' || mood === 'satisfied';
+  const worried = mood === 'worried';
+  const surprised = mood === 'surprised';
+  const fur = '#f08a3c';
+  const white = '#fff3e6';
+  const dark = '#4a2a1a';
+
+  g.save();
+  g.translate(0, Math.sin(t * (happy ? 4.5 : 1.8)) * (happy ? 0.04 : 0.02));
+
+  // 尾巴在左後方，白色尾尖
+  g.save();
+  g.translate(-0.42, 0.66);
+  g.rotate(-0.75 + Math.sin(t * (happy ? 5 : 1.6)) * (happy ? 0.18 : 0.06) + (worried ? 0.5 : 0));
+  ell(g, 0, -0.32, 0.17, 0.4);
+  blob(g, fur);
+  g.save();
+  ell(g, 0, -0.32, 0.17, 0.4);
+  g.clip();
+  ell(g, 0, -0.7, 0.2, 0.17);
+  g.fillStyle = white;
+  g.fill();
+  g.restore();
+  ell(g, 0, -0.32, 0.17, 0.4);
+  g.lineWidth = 0.045;
+  g.strokeStyle = INK;
+  g.stroke();
+  g.restore();
+
+  // 尖耳朵：著急時往兩邊垂
+  for (const s of [-1, 1]) {
+    g.save();
+    g.translate(s * 0.27, -0.34);
+    g.rotate(s * (worried ? 0.75 : surprised ? 0.05 : 0.2));
+    g.beginPath();
+    g.moveTo(-0.14, 0.06);
+    g.lineTo(0, -0.36);
+    g.lineTo(0.14, 0.06);
+    g.closePath();
+    blob(g, fur);
+    g.beginPath();
+    g.moveTo(-0.07, 0.02);
+    g.lineTo(0, -0.24);
+    g.lineTo(0.07, 0.02);
+    g.closePath();
+    g.fillStyle = '#5a2e1e';
+    g.fill();
+    g.restore();
+  }
+
+  // 身體、胸前白毛、紅色小斗篷領
+  ell(g, 0, 0.72, 0.42, 0.34);
+  blob(g, fur);
+  ell(g, 0, 0.68, 0.19, 0.18);
+  g.fillStyle = white;
+  g.fill();
+  g.beginPath();
+  g.moveTo(-0.3, 0.4);
+  g.lineTo(0.3, 0.4);
+  g.lineTo(0.18, 0.54);
+  g.lineTo(0, 0.48);
+  g.lineTo(-0.18, 0.54);
+  g.closePath();
+  blob(g, '#c43a5e', 0.035);
+
+  // 頭、白色臉頰
+  ell(g, 0, -0.02, 0.5, 0.43);
+  blob(g, fur);
+  g.save();
+  ell(g, 0, -0.02, 0.5, 0.43);
+  g.clip();
+  for (const s of [-1, 1]) {
+    ell(g, s * 0.24, 0.2, 0.25, 0.18);
+    g.fillStyle = white;
+    g.fill();
+  }
+  g.restore();
+  ell(g, 0, -0.02, 0.5, 0.43);
+  g.lineWidth = 0.045;
+  g.strokeStyle = INK;
+  g.stroke();
+
+  // 眼睛
+  const blink = (t % 3.6) < 0.12;
+  if (happy) {
+    closedEye(g, -0.19, -0.04, 0.1, true);
+    closedEye(g, 0.19, -0.04, 0.1, true);
+  } else if (blink && !surprised) {
+    closedEye(g, -0.19, -0.04, 0.1);
+    closedEye(g, 0.19, -0.04, 0.1);
+  } else {
+    const look = worried ? [0, 0.5] : [Math.sin(t * 0.8) * 0.5, 0];
+    eye(g, -0.19, -0.04, 0.12, { wide: surprised ? 1.25 : 0.95, look, pupil: '#5a2e1e' });
+    eye(g, 0.19, -0.04, 0.12, { wide: surprised ? 1.25 : 0.95, look, pupil: '#5a2e1e' });
+  }
+  if (worried) {
+    line(g, [
+      [-0.3, -0.22],
+      [-0.1, -0.28],
+    ], 0.035);
+    line(g, [
+      [0.3, -0.22],
+      [0.1, -0.28],
+    ], 0.035);
+  }
+  blush(g, -0.32, 0.1, 0.07);
+  blush(g, 0.32, 0.1, 0.07);
+
+  // 鼻子與嘴
+  ell(g, 0, 0.1, 0.055, 0.04);
+  blob(g, dark, 0.02);
+  if (surprised) {
+    ell(g, 0, 0.24, 0.05, 0.06);
+    blob(g, '#6b1f3a', 0.025);
+  } else if (worried) {
+    line(g, [
+      [-0.07, 0.24],
+      [0, 0.21],
+      [0.07, 0.24],
+    ], 0.03);
+  } else {
+    g.beginPath();
+    g.moveTo(-0.1, 0.18);
+    g.quadraticCurveTo(0, happy ? 0.3 : 0.25, 0.1, 0.18);
+    g.lineWidth = 0.03;
+    g.strokeStyle = INK;
+    g.stroke();
+  }
+
+  // 小禮帽：驚訝時跳起來
+  g.save();
+  const hop = surprised ? 0.12 + Math.abs(Math.sin(t * 8)) * 0.06 : 0;
+  g.translate(0.1, -0.4 - hop);
+  g.rotate(0.2);
+  ell(g, 0, 0, 0.21, 0.05);
+  blob(g, '#2b2240', 0.035);
+  g.beginPath();
+  g.roundRect(-0.12, -0.27, 0.24, 0.27, 0.03);
+  blob(g, '#2b2240', 0.035);
+  g.fillStyle = '#c43a5e';
+  g.fillRect(-0.12, -0.09, 0.24, 0.06);
+  g.restore();
+
+  // 魔杖：開心時揮舞，杖尖冒星星
+  g.save();
+  g.translate(0.36, 0.62);
+  g.rotate(-0.45 + (happy ? Math.sin(t * 7) * 0.35 : Math.sin(t * 1.5) * 0.05));
+  line(g, [
+    [0, 0],
+    [0, -0.44],
+  ], 0.06, INK);
+  line(g, [
+    [0, -0.36],
+    [0, -0.44],
+  ], 0.04, '#fff');
+  if (happy || surprised) {
+    star5(g, 0, -0.54, 0.09 + Math.sin(t * 9) * 0.02);
+    blob(g, '#ffd36e', 0.02);
+  }
+  ell(g, 0, 0, 0.07, 0.06);
+  blob(g, fur, 0.03);
+  g.restore();
+  ell(g, -0.2, 0.66, 0.07, 0.06);
+  blob(g, fur, 0.03);
+  g.restore();
+
+  if (mood === 'satisfied') sparkles(g, t, '#ffd36e');
+  if (worried) sweat(g, -0.5, -0.25, t);
+  if (surprised) exclaim(g, -0.68, -0.8, t);
+}
+
+// ---------- 青蛙先生（下週辦婚禮，怕下雨） ----------
+
+function drawFrog(g, t, mood) {
+  const happy = mood === 'happy' || mood === 'satisfied';
+  const worried = mood === 'worried';
+  const surprised = mood === 'surprised';
+  const skin = '#7cc46a';
+  const belly = '#e2f3c0';
+
+  // 著急時下雨（畫在最後面）
+  if (worried) {
+    for (let i = 0; i < 7; i++) {
+      const k = (t * 1.3 + i * 0.37) % 1;
+      const x = -1 + i * 0.33;
+      const y = -1.1 + k * 2.1;
+      g.save();
+      g.globalAlpha = Math.sin(k * Math.PI) * 0.9;
+      line(g, [
+        [x, y],
+        [x - 0.03, y + 0.12],
+      ], 0.03, '#9fd8ff');
+      g.restore();
+    }
+  }
+
+  g.save();
+  g.translate(0, Math.abs(Math.sin(t * (happy ? 4 : 1.5))) * -(happy ? 0.06 : 0.015));
+
+  // 雨傘：平常撐著，滿意時收起來放到旁邊
+  g.save();
+  const closed = mood === 'satisfied';
+  g.translate(-0.36, closed ? 0.3 : -0.15);
+  g.rotate(closed ? -0.5 : -0.22 + Math.sin(t * 1.4) * 0.05);
+  line(g, [
+    [0, 0.8],
+    [0, -0.72],
+  ], 0.04);
+  if (closed) {
+    g.beginPath();
+    g.moveTo(0, -0.72);
+    g.quadraticCurveTo(0.12, -0.3, 0.05, 0.25);
+    g.lineTo(-0.05, 0.25);
+    g.quadraticCurveTo(-0.12, -0.3, 0, -0.72);
+    blob(g, '#7fb6ff', 0.035);
+  } else {
+    g.beginPath();
+    g.moveTo(-0.6, -0.6);
+    g.quadraticCurveTo(0, -1.25, 0.6, -0.6);
+    for (let i = 0; i < 4; i++) {
+      const x0 = 0.6 - i * 0.3;
+      g.quadraticCurveTo(x0 - 0.15, -0.5, x0 - 0.3, -0.6);
+    }
+    g.closePath();
+    blob(g, '#7fb6ff', 0.04);
+    for (const x of [-0.3, 0, 0.3]) {
+      line(g, [
+        [0, -0.92],
+        [x, -0.6],
+      ], 0.02, '#4a7fc0');
+    }
+  }
+  g.beginPath();
+  g.arc(0.08, 0.8, 0.08, 0, Math.PI);
+  g.lineWidth = 0.04;
+  g.strokeStyle = INK;
+  g.stroke();
+  g.restore();
+
+  // 身體、肚子、領結
+  ell(g, 0, 0.74, 0.46, 0.32);
+  blob(g, skin);
+  ell(g, 0, 0.8, 0.3, 0.22);
+  blob(g, belly, 0.03);
+  for (const s of [-1, 1]) {
+    g.beginPath();
+    g.moveTo(0, 0.46);
+    g.lineTo(s * 0.16, 0.38);
+    g.lineTo(s * 0.16, 0.54);
+    g.closePath();
+    blob(g, '#c43a5e', 0.03);
+  }
+  ell(g, 0, 0.46, 0.045, 0.045);
+  blob(g, '#e85a7e', 0.025);
+
+  // 頭頂的兩個眼睛凸起
+  for (const s of [-1, 1]) {
+    ell(g, s * 0.26, -0.28, 0.2, 0.19);
+    blob(g, skin);
+  }
+  ell(g, 0, 0.06, 0.56, 0.38);
+  blob(g, skin);
+  // 補掉凸起和臉之間的線
+  for (const s of [-1, 1]) {
+    ell(g, s * 0.26, -0.18, 0.16, 0.08);
+    g.fillStyle = skin;
+    g.fill();
+  }
+
+  const blink = (t % 4.1) < 0.14;
+  if (mood === 'satisfied') {
+    closedEye(g, -0.26, -0.3, 0.1, true);
+    closedEye(g, 0.26, -0.3, 0.1, true);
+  } else if (blink && !surprised) {
+    closedEye(g, -0.26, -0.3, 0.1);
+    closedEye(g, 0.26, -0.3, 0.1);
+  } else {
+    const look = worried ? [0, -0.6] : [Math.sin(t * 0.7) * 0.6, 0];
+    eye(g, -0.26, -0.3, 0.13, { wide: surprised ? 1.2 : 1, look, lid: worried ? 0.25 : 0, lidColor: skin });
+    eye(g, 0.26, -0.3, 0.13, { wide: surprised ? 1.2 : 1, look, lid: worried ? 0.25 : 0, lidColor: skin });
+  }
+  blush(g, -0.38, 0.14, 0.08);
+  blush(g, 0.38, 0.14, 0.08);
+  ell(g, -0.06, 0.0, 0.018, 0.012);
+  ell(g, 0.06, 0.0, 0.018, 0.012);
+  g.fillStyle = INK;
+  ell(g, -0.06, 0.0, 0.018, 0.012);
+  g.fill();
+  ell(g, 0.06, 0.0, 0.018, 0.012);
+  g.fill();
+
+  // 大嘴巴
+  if (surprised) {
+    ell(g, 0, 0.2, 0.09, 0.09);
+    blob(g, '#a8324e', 0.03);
+  } else if (worried) {
+    line(g, [
+      [-0.28, 0.2],
+      [-0.14, 0.15],
+      [0, 0.2],
+      [0.14, 0.15],
+      [0.28, 0.2],
+    ], 0.035);
+  } else if (happy) {
+    g.beginPath();
+    g.moveTo(-0.3, 0.12);
+    g.quadraticCurveTo(0, 0.42, 0.3, 0.12);
+    g.closePath();
+    blob(g, '#a8324e', 0.035);
+    ell(g, 0, 0.24, 0.1, 0.04);
+    g.fillStyle = '#ff8fa8';
+    g.fill();
+  } else {
+    g.beginPath();
+    g.moveTo(-0.3, 0.13);
+    g.quadraticCurveTo(0, 0.28, 0.3, 0.13);
+    g.lineWidth = 0.035;
+    g.strokeStyle = INK;
+    g.stroke();
+  }
+
+  // 握傘的手與另一隻手
+  ell(g, -0.34, 0.58, 0.08, 0.07);
+  blob(g, skin, 0.03);
+  ell(g, 0.36, 0.64, 0.08, 0.07);
+  blob(g, skin, 0.03);
+  g.restore();
+
+  if (mood === 'satisfied') sparkles(g, t);
+  if (happy && mood !== 'satisfied') hearts(g, t);
+  if (surprised) exclaim(g, 0.7, -0.75, t);
+}
+
 // ---------- 角色資料 ----------
 // moods：每種心情的按鈕名稱與台詞（遊戲裡隨機挑一句）；lose：玩家沒過關時的台詞
 
@@ -724,6 +1237,51 @@ export const CUSTOMERS = {
       { key: 'satisfied', label: '過關', lines: ['好！我有信心了，謝謝！'] },
     ],
     lose: ['唉……還是先回家練習自我介紹吧……'],
+  },
+  squirrel: {
+    id: 'squirrel',
+    name: '松鼠奶奶・栗子',
+    tag: '新客人',
+    desc: '戴著圓眼鏡的老奶奶，忘了過冬的橡果埋在哪棵樹下。',
+    draw: drawSquirrel,
+    moods: [
+      { key: 'idle', label: '平常', lines: ['年紀大了，記性不好囉……幫奶奶找找橡果吧。', '好像是在一棵大樹下面……', '慢慢來，奶奶不急。'] },
+      { key: 'happy', label: '開心', lines: ['哎呀，好像想起來了！', '乖孩子，做得真好。', '這牌面，奶奶喜歡。'] },
+      { key: 'worried', label: '著急', lines: ['冬天快到了，這可怎麼辦……', '哎呀呀，尾巴都垂下來了……', '是不是被誰挖走了……'] },
+      { key: 'surprised', label: '驚訝', lines: ['哎唷！眼鏡都滑下來了！', '這麼厲害，奶奶年輕時都沒見過！', '嚇奶奶一跳！'] },
+      { key: 'satisfied', label: '過關', lines: ['找到了找到了！分你一顆橡果吧！'] },
+    ],
+    lose: ['唉，今年冬天只好省著點吃了……'],
+  },
+  fox: {
+    id: 'fox',
+    name: '小狐狸・阿焰',
+    tag: '新客人',
+    desc: '魔術師學徒，明天第一次登台表演，想知道會不會出包。',
+    draw: drawFox,
+    moods: [
+      { key: 'idle', label: '平常', lines: ['明天第一次上台……會不會把鴿子變不見啊？', '占卜也算一種魔術吧？', '我、我才沒有緊張！'] },
+      { key: 'happy', label: '開心', lines: ['看！跟我的魔術一樣閃亮！', '嘿嘿，這招我學起來了！', '觀眾一定會拍手！'] },
+      { key: 'worried', label: '著急', lines: ['不行不行，耳朵都垂下來了……', '萬一帽子裡什麼都沒有怎麼辦！', '師父說不能慌……可是……'] },
+      { key: 'surprised', label: '驚訝', lines: ['哇！帽子都飛起來了！', '這比我的魔術還厲害！', '你是怎麼變出來的！？'] },
+      { key: 'satisfied', label: '過關', lines: ['明天的表演，一定會成功的！'] },
+    ],
+    lose: ['嗚……今晚再練習一百次好了……'],
+  },
+  frog: {
+    id: 'frog',
+    name: '青蛙先生・呱太',
+    tag: '新客人',
+    desc: '下週要辦婚禮，一直撐著傘，擔心那天會下雨。',
+    draw: drawFrog,
+    moods: [
+      { key: 'idle', label: '平常', lines: ['下週的婚禮……會下雨嗎？', '雖然青蛙喜歡下雨，但新娘不喜歡呱。', '傘我隨時都帶著。'] },
+      { key: 'happy', label: '開心', lines: ['呱！好像會是晴天！', '她一定會很開心的呱！', '心情跟放晴一樣！'] },
+      { key: 'worried', label: '著急', lines: ['呱……開始下雨了……', '不、不會吧，烏雲來了……', '傘、傘要撐好……'] },
+      { key: 'surprised', label: '驚訝', lines: ['呱！？嚇得我跳起來！', '這麼大的連鎖，是彩虹嗎！？', '眼睛都要掉出來了呱！'] },
+      { key: 'satisfied', label: '過關', lines: ['可以收傘了！婚禮見呱！'] },
+    ],
+    lose: ['呱……還是先把室內場地訂好吧……'],
   },
   owl: {
     id: 'owl',

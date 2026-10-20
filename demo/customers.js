@@ -1,7 +1,7 @@
 // 客人試作頁：角色資料與繪圖在 src/customers.js（遊戲也用同一份）
 import { CUSTOMERS, paintCustomer } from '../src/customers.js';
 
-const LIST = [CUSTOMERS.rabbit, CUSTOMERS.hedgehog, CUSTOMERS.owl];
+const LIST = ['rabbit', 'hedgehog', 'squirrel', 'fox', 'frog', 'owl'].map((id) => CUSTOMERS[id]);
 
 // ---------- 畫面 ----------
 
