@@ -206,13 +206,14 @@
           <li>滑動水晶，或先點一顆再點旁邊那顆來交換。三顆同色連成一線就會消除。</li>
           <li>得分 =（水晶分數 + 形狀加值）× 連鎖倍率。4 連、5 連、L 形、T 形有加值，連鎖越多層倍率越高。</li>
           <li>一局走一張星盤：每步選一顆相鄰的星，最上面最亮的是 Boss。路上有客人、占卜室、命運之泉、星光冥想等。</li>
-          <li>每關依分數給星：目標的 60% 一顆星、達到目標兩顆星（過關）、1.5 倍三顆星（完美，回 2 點星光）。</li>
+          <li>每關依分數給星：目標的 60% 一顆星、達到目標兩顆星（過關）、1.5 倍三顆星（完美，回 1 點星光）。</li>
           <li>沒達標不會直接結束，而是扣「星光」，差越多扣越多；星光歸零整局才結束。步數用完時可以花 2 點星光「加時占卜」多走一步。</li>
-          <li>每位客人還會帶一個「委託」（收集某色水晶、做出特殊水晶、打出連鎖等），進度顯示在盤面上方。完成就多拿 4 金幣、回 3 點星光，就算分數沒達標也算數。</li>
+          <li>每位客人還會帶一個「委託」（收集某色水晶、做出特殊水晶、打出連鎖等），進度顯示在盤面上方。完成就多拿 4 金幣、回 2 點星光，就算分數沒達標也算數。</li>
           <li>達標後可以繼續衝三星，也可以按「收工」把剩下的步數換成金幣。</li>
           <li>塔羅牌最多 5 張，點一下可以看效果。逆位比較強，但有代價。</li>
           <li>4 連、L 形、T 形、5 連會生出特殊水晶，再消掉它就會引爆，詳見下方圖鑑。</li>
         </ul>
+        <button id="btn-tutorial" type="button" class="btn btn-dark btn-tutorial">重看新手引導</button>
         <div id="codex" class="codex"></div>
         <p id="help-perks" class="help-perks"></p>
         <p class="meta"><span id="version"></span> · 種子 <span id="seed"></span> · <a href="demo/board.html">Canvas 試作頁</a> · <a href="demo/customers.html">客人試作頁</a> · <a href="demo/map.html">星盤試作頁</a></p>
@@ -241,6 +242,15 @@
     </div>
 
     <!-- 新方塊介紹：第一次出現時跳出 -->
+    <!-- 新手引導：聚光燈 + 說明卡 -->
+    <div id="coach" class="coach" hidden>
+      <div class="coach-spot"></div>
+      <div class="coach-card" role="dialog" aria-live="polite">
+        <p class="coach-text"></p>
+        <p class="coach-next">點一下繼續</p>
+      </div>
+    </div>
+
     <div id="newkind" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="newkind-name">
       <div class="modal-card newkind-card">
         <div class="newkind-tag">新方塊</div>

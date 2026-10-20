@@ -2439,3 +2439,76 @@ body.in-menu .hud {
 .star-line.quest .ic {
   color: #9ff0bf;
 }
+
+/* ---------- 新手引導 ---------- */
+
+.coach {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.coach.blocking {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.coach-spot {
+  position: absolute;
+  border-radius: 16px;
+  box-shadow: 0 0 0 9999px rgba(6, 3, 18, 0.66);
+  outline: 2px solid rgba(255, 211, 110, 0.85);
+  animation: coach-glow 1.6s ease-in-out infinite;
+  transition: left 0.3s, top 0.3s, width 0.3s, height 0.3s;
+}
+
+.coach:not(.blocking) .coach-spot {
+  box-shadow: 0 0 0 9999px rgba(6, 3, 18, 0.45);
+}
+
+@keyframes coach-glow {
+  50% {
+    outline-color: rgba(255, 211, 110, 0.35);
+  }
+}
+
+.coach-card {
+  position: absolute;
+  padding: 12px 14px 10px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 211, 110, 0.5);
+  background: linear-gradient(#30205f, #160d36);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: coach-in 0.3s ease-out;
+}
+
+.coach-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.coach-text strong {
+  color: var(--gold);
+}
+
+.coach-next {
+  margin: 6px 0 0;
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+@keyframes coach-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.btn-tutorial {
+  display: block;
+  margin: 4px auto 12px;
+}

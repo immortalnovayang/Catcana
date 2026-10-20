@@ -31,11 +31,12 @@ import {
 } from './run.js';
 import { COMMISSION_THANKS, COMMISSIONS, ELITE_RULES, MOONS, NODE_BY_ID, NODE_TYPES, applyMoon, commissionText } from './starmap.js';
 import { MapView } from './mapview.js';
+import { Coach, markTutorial, resetTutorial, tutorialDone } from './tutorial.js';
 import { CRYSTAL_INFO } from './gems.js';
 import { TAROT } from './tarot.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.13 · 客人委託';
+const VERSION = 'v0.14 · 新手引導';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -62,13 +63,15 @@ const state = {
   totalSteps: 0,
   lastChain: 0,
   mood: 'idle', // 客人現在的心情
+  coaching: false, // 新手引導的說明卡擋住操作中
+  tutorial: false, // 這一關正在跑新手引導
   quest: 0, // 客人委託的進度
   questDone: false,
 };
 
 const view = new BoardView($('stage'), $('board'), new Board(createRng(0)));
 const input = bindInput(view, {
-  canAct: () => !state.busy && !state.over,
+  canAct: () => !state.busy && !state.over && !state.coaching,
   onSwap: (a, b) => trySwap(a, b),
   canFarSwap,
   isPicking: () => state.pick !== null,
@@ -321,6 +324,9 @@ function showScreen(name) {
   for (const id of SCREENS) $(id).hidden = id !== name;
   $('card-detail').hidden = true;
   document.body.classList.toggle('in-menu', name !== 'play');
+  // 換畫面就收掉引導卡（引導會自己發現不在原本的畫面而停下）
+  coach.finish();
+  state.coaching = false;
 }
 
 // ---------- 流程 ----------
@@ -381,6 +387,8 @@ function startLevel() {
   state.reached = false;
   state.quest = 0;
   state.questDone = false;
+  state.tutorial = !tutorialDone('level') && currentLevel(run).kind === 'small';
+  if (state.tutorial) setTimeout(levelTutorial, 1200);
   $('overtime').hidden = true;
   showScreen('play');
   meetCustomer();
@@ -938,6 +946,60 @@ function openMap() {
   // 手上有命運之輪：預言能力讓整張星盤都看得見
   mapView.show(run, { onEnter: enterNode, reveal: run.tarots.some((t) => t.id === 'wheel') });
   updateHud();
+  if (!tutorialDone('map') && run.node === 'S') setTimeout(mapTutorial, 500);
+}
+
+// ---------- 新手引導 ----------
+
+const coach = new Coach($('coach'));
+
+async function mapTutorial() {
+  if (screen() !== 'mapscreen') return;
+  await coach.show($('map-area'), '這是<strong>牡羊座星盤</strong>。每次往上走一顆相連的星，最上面的是 <strong>Boss 貓頭鷹</strong>。<br>先點一顆亮著的星看看，再按「前往這顆星」。');
+  markTutorial('map');
+}
+
+function coachStep(el, text) {
+  state.coaching = true;
+  input.clearSelection();
+  return coach.show(el, text).then(() => (state.coaching = false));
+}
+
+const until = (ok) =>
+  new Promise((resolve) => {
+    const t = setInterval(() => {
+      if (ok()) {
+        clearInterval(t);
+        resolve();
+      }
+    }, 150);
+  });
+
+async function levelTutorial() {
+  const stillHere = () => screen() === 'play' && !state.over;
+  if (!stillHere()) return;
+  // 第一步：跟著提示交換一次（提示每 2 秒閃一次）
+  const hintLoop = setInterval(() => {
+    const move = state.board.findValidMove();
+    if (move && !state.busy) view.hint(move);
+  }, 2000);
+  view.hint(state.board.findValidMove() ?? []);
+  coach.show($('board'), '交換<strong>相鄰的兩顆水晶</strong>（滑動，或先後點兩顆），排成三顆以上同色就會消除。<br>跟著閃光的提示試試看！', { tap: false });
+  await until(() => !stillHere() || (state.stepsTaken >= 1 && !state.busy));
+  clearInterval(hintLoop);
+  coach.finish();
+  if (!stillHere()) return;
+  const level = currentLevel(run);
+  await coachStep($('score-card'), `這是分數。到 <strong>${level.target}</strong> 分（兩顆星）就過關，1.5 倍拿到三顆星會自動結束。`);
+  await coachStep($('steps-card'), '剩下的步數。用完就結算，達標之後也可以按「收工」把剩下的步數換成金幣。');
+  if (level.commission && stillHere()) await coachStep($('commission'), `客人的<strong>委託</strong>：${commissionText(level.commission)}。<br>完成就多拿金幣和星光，分數沒達標也算數。`);
+  if (stillHere()) await coachStep($('gold-card'), '上面是<strong>星光</strong>：分數沒達標會扣，歸零這局就結束。<br>下面是<strong>金幣</strong>：在占卜室買塔羅牌和行星。');
+  if (stillHere()) await coachStep($('board'), '小訣竅：排出 <strong>4 連、L 形、T 形</strong>會生出特殊水晶，再消掉它就會引爆。<br>祝占卜順利！');
+  state.tutorial = false;
+  if (!stillHere()) return; // 中途離開：下次再從頭看
+  markTutorial('level');
+  scheduleHint();
+  showNextIntro();
 }
 
 function enterNode(id) {
@@ -1252,6 +1314,16 @@ function reactCustomer() {
   if (mood !== state.mood) setCustomerMood(mood);
 }
 
+$('btn-tutorial').addEventListener('click', () => {
+  resetTutorial();
+  closeHelp();
+  if (screen() === 'mapscreen') mapTutorial();
+  else if (screen() === 'play' && !state.over && !state.tutorial) {
+    state.tutorial = true;
+    levelTutorial();
+  }
+});
+
 $('commission').addEventListener('click', () => {
   const c = currentLevel(run).commission;
   if (c) say(state.questDone ? COMMISSION_THANKS[customerId()] : `拜託你：${commissionText(c)}`);
@@ -1289,7 +1361,7 @@ function noteNewKinds() {
 }
 
 function showNextIntro() {
-  if (!introQueue.length || !$('newkind').hidden || state.busy || screen() !== 'play' || !$('result').hidden) return;
+  if (state.tutorial || !introQueue.length || !$('newkind').hidden || state.busy || screen() !== 'play' || !$('result').hidden) return;
   const kind = introQueue.shift();
   seenKinds.add(kind);
   saveSeen();

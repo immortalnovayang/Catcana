@@ -19,7 +19,7 @@ export const START_STARLIGHT = 30;
 export const STAR1 = 0.6; // ★：目標的 60%
 export const STAR3 = 1.5; // ★★★：目標的 150%（一達到就自動結束）
 export const OVERTIME_COST = 2; // 加時占卜：2 點星光換 1 步
-export const PERFECT_HEAL = 2; // 三星回復的星光
+export const PERFECT_HEAL = 1; // 三星回復的星光
 
 // 0～3 顆星；★★ 就是達標
 export function starRating(score, target) {
@@ -32,7 +32,7 @@ export function starRating(score, target) {
 // 沒達標扣的星光：差越多扣越多，Boss 加倍
 export function starlightDamage(score, target, boss = false) {
   if (score >= target) return 0;
-  const dmg = Math.ceil((1 - score / target) * 14) + 2;
+  const dmg = Math.ceil((1 - score / target) * 20) + 3;
   return boss ? dmg * 2 : dmg;
 }
 

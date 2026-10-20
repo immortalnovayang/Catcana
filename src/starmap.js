@@ -103,9 +103,9 @@ const FLOOR_POOL = {
 
 // 目標分數：越上層越高；難纏客人 ×1.15；Boss 固定（之後用模擬器校準）
 export function targetFor(floor, type) {
-  if (type === 'boss') return 2800;
-  const base = 1450 + floor * 150;
-  return type === 'elite' ? Math.round((base * 1.15) / 50) * 50 : base;
+  if (type === 'boss') return 3000;
+  const base = 1300 + floor * 300;
+  return type === 'elite' ? Math.round((base * 1.2) / 50) * 50 : base;
 }
 
 export const REWARDS = { customer: 3, elite: 5, boss: 6 };
@@ -113,7 +113,7 @@ export const REWARDS = { customer: 3, elite: 5, boss: 6 };
 // ---------- 客人委託：分數之外的第二個目標 ----------
 // 完成就有額外獎勵（不管分數有沒有達標），讓每一關的打法不一樣
 
-export const COMMISSION_REWARD = { gold: 4, starlight: 3 };
+export const COMMISSION_REWARD = { gold: 4, starlight: 2 };
 
 export const COMMISSIONS = {
   collect: { icon: null, text: (c) => `收集 ${c.need} 顆${CRYSTAL_INFO[c.color].name}` },
