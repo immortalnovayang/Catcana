@@ -109,6 +109,66 @@ export function targetFor(floor, type) {
 }
 
 export const REWARDS = { customer: 3, elite: 5, boss: 6 };
+
+// ---------- 客人委託：分數之外的第二個目標 ----------
+// 完成就有額外獎勵（不管分數有沒有達標），讓每一關的打法不一樣
+
+export const COMMISSION_REWARD = { gold: 4, starlight: 3 };
+
+export const COMMISSIONS = {
+  collect: { icon: null, text: (c) => `收集 ${c.need} 顆${CRYSTAL_INFO[c.color].name}` },
+  create: { icon: 'star', text: (c) => `做出 ${c.need} 顆特殊水晶` },
+  chain: { icon: 'chain', text: (c) => `打出一次 ${c.need} 層以上的連鎖` },
+  blast: { icon: 'sun', text: (c) => `引爆 ${c.need} 次特殊水晶` },
+  hatch: { icon: 'egg', text: (c) => `孵化 ${c.need} 顆蛋` },
+  wake: { icon: 'moon', text: (c) => `叫醒 ${c.need} 顆沉睡水晶` },
+};
+
+// 每位客人會提的委託（依個性）
+const COMMISSION_PREFS = {
+  rabbit: [['collect', 'star'], ['collect', 'fire'], ['hatch']],
+  hedgehog: [['create'], ['chain'], ['blast']],
+  owl: [['wake']],
+};
+
+// 委託完成時客人說的話
+export const COMMISSION_THANKS = {
+  rabbit: '謝謝你！這樣我就有勇氣了！',
+  hedgehog: '太好了，這下面試穩了！',
+  owl: '唔……看著水晶一顆顆醒來，我反而有點想睡了……',
+};
+
+// 數量：越上層越多，難纏客人再加一點
+function commissionNeed(type, floor, elite) {
+  const hi = floor >= 4;
+  const e = elite ? 1 : 0;
+  switch (type) {
+    case 'collect':
+      return 28 + floor * 2 + e * 6;
+    case 'create':
+      return 7 + (hi ? 2 : 0) + e;
+    case 'blast':
+      return 5 + (hi ? 2 : 0) + e;
+    case 'chain':
+      return Math.min(6, (hi ? 6 : 5) + e);
+    case 'hatch':
+      return 4 + e; // 開局會放同樣數量的蛋
+    default:
+      return 6; // wake（Boss）
+  }
+}
+
+export function makeCommission(rng, customer, floor, elite = false) {
+  const prefs = COMMISSION_PREFS[customer];
+  const [type, color] = prefs[rng.int(prefs.length)];
+  const c = { type, need: commissionNeed(type, floor, elite) };
+  if (color) c.color = color;
+  return c;
+}
+
+export function commissionText(c) {
+  return COMMISSIONS[c.type].text(c);
+}
 const REGULARS = ['rabbit', 'hedgehog'];
 
 // 產生一張星盤：每顆星的種類，關卡星還有客人、月相、難纏規則與目標分數
@@ -133,9 +193,11 @@ export function generateStarmap(seed) {
     node.reward = REWARDS[node.type];
     if (node.type === 'boss') {
       node.customer = 'owl';
+      node.commission = makeCommission(rng, 'owl', n.floor);
       continue;
     }
     node.customer = REGULARS[rng.int(REGULARS.length)];
+    node.commission = makeCommission(rng, node.customer, n.floor, node.type === 'elite');
     // 一半的關卡有月相
     if (rng() < 0.5) node.moon = moonKeys[rng.int(moonKeys.length)];
     if (node.type === 'elite') {

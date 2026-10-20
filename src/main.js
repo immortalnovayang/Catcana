@@ -29,13 +29,13 @@ import {
   OWL_SLEEPS,
   shopSeed,
 } from './run.js';
-import { ELITE_RULES, MOONS, NODE_BY_ID, NODE_TYPES, applyMoon } from './starmap.js';
+import { COMMISSION_THANKS, COMMISSIONS, ELITE_RULES, MOONS, NODE_BY_ID, NODE_TYPES, applyMoon, commissionText } from './starmap.js';
 import { MapView } from './mapview.js';
 import { CRYSTAL_INFO } from './gems.js';
 import { TAROT } from './tarot.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.12 · 星光';
+const VERSION = 'v0.13 · 客人委託';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -62,6 +62,8 @@ const state = {
   totalSteps: 0,
   lastChain: 0,
   mood: 'idle', // 客人現在的心情
+  quest: 0, // 客人委託的進度
+  questDone: false,
 };
 
 const view = new BoardView($('stage'), $('board'), new Board(createRng(0)));
@@ -243,8 +245,46 @@ function updateHud() {
   $('btn-requeue').hidden = !fx || fx.queueRerolls === 0;
   skillButton($('btn-requeue'), 'wheel', '重抽掉落', state.requeueLeft, { disabled: state.requeueLeft === 0 || locked });
 
+  renderCommission();
   renderHand($('hand'), false);
   animateScore();
+}
+
+// ---------- 客人委託：分數之外的第二個目標 ----------
+
+function commissionIcon(c) {
+  const tile = c.type === 'collect' ? { type: c.color } : c.type === 'hatch' ? { type: 'egg' } : c.type === 'wake' ? { type: 'water', special: 'sleep' } : null;
+  return tile ? `<img src="${tileImage(tile)}" alt="" />` : icon(COMMISSIONS[c.type].icon);
+}
+
+function renderCommission() {
+  const el = $('commission');
+  const c = screen() === 'play' ? currentLevel(run).commission : null;
+  el.hidden = !c;
+  if (!c) return;
+  const shown = c.type === 'chain' ? `${Math.min(state.quest, c.need)} / ${c.need} 層` : `${Math.min(state.quest, c.need)} / ${c.need}`;
+  el.classList.toggle('done', state.questDone);
+  el.title = commissionText(c);
+  el.innerHTML = `${commissionIcon(c)}<span class="q-label">委託</span><span class="q-count">${state.questDone ? '完成' : shown}</span>`;
+}
+
+// 累計委託進度；連鎖是「單次最高」，其他是加總
+function addQuest(type, n) {
+  const c = currentLevel(run).commission;
+  if (!c || state.questDone || c.type !== type || n <= 0) return;
+  state.quest = type === 'chain' ? Math.max(state.quest, n) : state.quest + n;
+  if (state.quest >= c.need) {
+    state.questDone = true;
+    view.popup('委託完成！', 'big');
+    sfx.coin();
+    const who = currentLevel(run).customer;
+    setCustomerMood(who === 'owl' ? 'surprised' : 'happy', { line: COMMISSION_THANKS[who] });
+  }
+  renderCommission();
+  const el = $('commission');
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
 }
 
 function setStepInfo(text, ic = null, cls = '') {
@@ -339,6 +379,8 @@ function startLevel() {
   state.totalSteps = state.stepsLeft;
   state.lastChain = 0;
   state.reached = false;
+  state.quest = 0;
+  state.questDone = false;
   $('overtime').hidden = true;
   showScreen('play');
   meetCustomer();
@@ -440,7 +482,9 @@ function levelEffects() {
 function placeLevelSpecials() {
   const board = state.board;
   board.placeSpecial('seed', fx.startSeeds, { flower: fx.growSteps <= 0 });
-  board.placeSpecial('egg', fx.startEggs);
+  // 孵化委託：放上剛好需要的蛋
+  const quest = currentLevel(run).commission;
+  board.placeSpecial('egg', fx.startEggs + (quest?.type === 'hatch' ? quest.need : 0));
   const sleeps = ELITE_RULES[currentLevel(run).eliteRule]?.sleeps ?? 0;
   if (sleeps) board.placeSpecial('sleep', sleeps);
   if (!board.hasValidMove()) board.shuffle();
@@ -508,10 +552,20 @@ async function resolve(groups, { swapCells = [], first = null } = {}) {
     }
     stepTotal += layer.total;
     state.score += layer.total;
+    const quest = currentLevel(run).commission;
+    if (quest?.type === 'collect') {
+      const hit = new Set();
+      for (const g of plan.viewGroups) for (const c of g.cells) if ((c.tile ?? board.get(c.x, c.y))?.type === quest.color) hit.add(`${c.x},${c.y}`);
+      addQuest('collect', hit.size);
+    }
+    addQuest('create', plan.creations.length);
+    addQuest('blast', plan.detonations.length);
     bump('stat-score');
     updateHud();
     await view.clear(plan.viewGroups, chain);
     const reaction = applyLayer(board, plan, reactOpts);
+    addQuest('hatch', reaction.hatched.length);
+    addQuest('wake', reaction.woke.length);
     if (view.refreshTiles()) {
       for (const c of reaction.hatched) view.floatScore([c], '孵化', 'bonus');
       for (const c of reaction.woke) view.floatScore([c], '醒來', 'chain');
@@ -528,6 +582,7 @@ async function resolve(groups, { swapCells = [], first = null } = {}) {
   }
   state.bestChain = Math.max(state.bestChain, chain);
   state.lastChain = chain;
+  if (!noChain) addQuest('chain', chain);
   run.bestChain = Math.max(run.bestChain, chain);
   run.bestStep = Math.max(run.bestStep, stepTotal);
   setStepInfo(chain > 1 && !noChain ? `這一步 +${stepTotal}（${chain} 層連鎖）` : `這一步 +${stepTotal}`);
@@ -654,7 +709,7 @@ function endLevel() {
   $('overtime').hidden = true;
   const level = currentLevel(run);
   const boss = level.kind === 'boss';
-  const res = finishLevel(run, state.score, state.stepsLeft, fx);
+  const res = finishLevel(run, state.score, state.stepsLeft, fx, state.questDone);
   const cleared = boss && res.passed; // 打倒 Boss，整局通關
   const runOver = res.dead || cleared;
 
@@ -667,7 +722,8 @@ function endLevel() {
 
   const rows = [];
   if (res.damage) rows.push(['星光', `−${res.damage}`, 'light minus', 'spark']);
-  if (res.heal) rows.push(['完美占卜', `+${res.heal}`, 'light', 'spark']);
+  if (res.heal) rows.push([res.stars === 3 && res.commissionDone ? '完美占卜＋委託' : res.stars === 3 ? '完美占卜' : '委託謝禮', `+${res.heal}`, 'light', 'spark']);
+  if (res.commissionGold) rows.push(['委託完成', `+${res.commissionGold}`, '', 'coin']);
   if (res.base) rows.push([res.passed ? '過關獎勵' : '安慰獎勵', `+${res.base}`, '', 'coin']);
   if (res.steps) rows.push([`剩餘 ${res.steps} 步`, `+${res.steps}`, '', 'coin']);
   if (res.interest) rows.push(['利息', `+${res.interest}`, '', 'coin']);
@@ -1163,8 +1219,11 @@ function meetCustomer() {
   state.mood = 'idle';
   clearTimeout(bubbleTimer);
   $('customer-bubble').hidden = true;
+  // 一見面就說出這次的委託
   setTimeout(() => {
-    if (screen() === 'play' && !state.over) setCustomerMood('idle');
+    if (screen() !== 'play' || state.over) return;
+    if (level.commission) setCustomerMood('idle', { line: `拜託你：${commissionText(level.commission)}` });
+    else setCustomerMood('idle');
   }, 600);
 }
 
@@ -1193,6 +1252,10 @@ function reactCustomer() {
   if (mood !== state.mood) setCustomerMood(mood);
 }
 
+$('commission').addEventListener('click', () => {
+  const c = currentLevel(run).commission;
+  if (c) say(state.questDone ? COMMISSION_THANKS[customerId()] : `拜託你：${commissionText(c)}`);
+});
 $('customer-chip').addEventListener('click', () => say(lineFor(customerId(), state.mood === 'skill' ? 'idle' : state.mood)));
 
 // ---------- 新方塊介紹：某種方塊第一次出現在盤面上時跳出說明卡 ----------
@@ -1364,7 +1427,7 @@ $('shop-icon').innerHTML = icon('ball');
 document.querySelectorAll('.locked').forEach((el) => (el.innerHTML = icon('lock')));
 
 // 除錯用：主控台可以用 __game.view、__game.state 查看
-window.__game = { view, state, music, get run() { return run; } };
+window.__game = { view, state, music, swap: trySwap, get run() { return run; } };
 
 $('version').textContent = VERSION;
 const seedParam = Number.parseInt(new URLSearchParams(location.search).get('seed'), 10);

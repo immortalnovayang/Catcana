@@ -2,7 +2,7 @@
 import { BASE_SCORE } from './scoring.js';
 import { CHARACTERS, DEFAULT_CHARACTER } from './characters.js';
 import { CUSTOMERS } from './customers.js';
-import { NODE_BY_ID, eliteRuleText, generateStarmap, targetFor } from './starmap.js';
+import { COMMISSION_REWARD, NODE_BY_ID, eliteRuleText, generateStarmap, targetFor } from './starmap.js';
 
 export const BASE_STEPS = 15;
 export const BASE_SHUFFLES = 2;
@@ -91,6 +91,7 @@ export function currentLevel(run) {
     rule: node.type === 'boss' ? OWL_RULE : elite ? eliteRuleText(node) : null,
     eliteRule: elite ? node.rule : null,
     ruleColor: node.ruleColor ?? null,
+    commission: node.commission ?? null,
   };
 }
 
@@ -130,21 +131,25 @@ export function levelReward(run, stepsLeft, fx, passed = true) {
 }
 
 // 一關結束：算星等、星光增減與金幣。回傳結算內容
-export function finishLevel(run, score, stepsLeft, fx) {
+// commissionDone：客人委託有沒有完成（完成就多給金幣與星光，不管分數）
+export function finishLevel(run, score, stepsLeft, fx, commissionDone = false) {
   const level = currentLevel(run);
   const stars = starRating(score, level.target);
   const passed = stars >= 2;
   const reward = levelReward(run, stepsLeft, fx, passed);
   const damage = starlightDamage(score, level.target, level.kind === 'boss');
-  const heal = stars === 3 ? Math.min(PERFECT_HEAL, run.maxStarlight - run.starlight) : 0;
-  run.gold += reward.total;
-  run.starlight = Math.max(0, run.starlight - damage + heal);
+  const commissionGold = commissionDone ? COMMISSION_REWARD.gold : 0;
+  // 先扣再補：回復量以扣完之後的空間計算
+  const afterDamage = Math.max(0, run.starlight - damage);
+  const heal = Math.min((stars === 3 ? PERFECT_HEAL : 0) + (commissionDone ? COMMISSION_REWARD.starlight : 0), run.maxStarlight - afterDamage);
+  run.gold += reward.total + commissionGold;
+  run.starlight = afterDamage > 0 ? afterDamage + heal : 0;
   run.nextBonusSteps = 0;
   if (passed) {
     run.totalScore += score;
     run.cleared++;
   }
-  return { ...reward, stars, passed, damage, heal, dead: run.starlight <= 0 };
+  return { ...reward, stars, passed, damage, heal, commissionDone, commissionGold, dead: run.starlight <= 0 };
 }
 
 // 走到下一顆星

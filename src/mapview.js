@@ -1,7 +1,7 @@
 // 星盤畫面：星星節點是 DOM 按鈕（好點、可以用 SVG 圖示），連線與旅行的流星畫在一張小 Canvas 上
 // 遊戲流程在 main.js：show() 顯示目前的星盤，玩家走到某顆星時呼叫 onEnter(id)
 import { icon } from './icons.js';
-import { ARIES, BATTLE_TYPES, EDGES, FLOORS, MOONS, NODES, NODE_BY_ID, NODE_TYPES, childrenOf, eliteRuleText } from './starmap.js';
+import { ARIES, BATTLE_TYPES, EDGES, FLOORS, MOONS, NODES, NODE_BY_ID, NODE_TYPES, childrenOf, commissionText, eliteRuleText } from './starmap.js';
 import { CUSTOMERS } from './customers.js';
 
 const TAU = Math.PI * 2;
@@ -137,6 +137,7 @@ export class MapView {
       const who = CUSTOMERS[node.customer];
       name = node.type === 'elite' ? `難纏的${who.name.split('・')[0]}` : who.name;
       extra.push(`<div class="star-line">${icon('steps')}<span>目標 <strong>${node.target}</strong> 分 · 過關 +${node.reward} 金</span></div>`);
+      if (node.commission) extra.push(`<div class="star-line quest">${icon('chat')}<span>委託：${commissionText(node.commission)}</span></div>`);
       if (node.type === 'elite') extra.push(`<div class="star-line rule">${icon('sword')}<span>${eliteRuleText(node)}</span></div>`);
       if (node.moon) extra.push(`<div class="star-line">${moonSvg(node.moon)}<span><strong>${MOONS[node.moon].name}</strong>：${MOONS[node.moon].desc}</span></div>`);
     }

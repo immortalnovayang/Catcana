@@ -2371,3 +2371,71 @@ body.in-menu .hud {
   box-shadow: 0 4px 0 #0c3d26, 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.45);
   animation: card-glow 1.4s ease-in-out infinite;
 }
+
+/* ---------- 客人委託 ---------- */
+
+.info-row:has(.commission:not([hidden])) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 10px;
+}
+
+.commission {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 211, 110, 0.35);
+  background: rgba(20, 10, 40, 0.6);
+  color: #f3eaff;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.commission img,
+.commission .ic {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.commission .ic {
+  color: var(--gold);
+  padding: 1px;
+}
+
+.commission .q-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.commission .q-count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.commission.done {
+  border-color: rgba(120, 230, 160, 0.7);
+  background: rgba(30, 90, 60, 0.55);
+}
+
+.commission.done .q-count {
+  color: #9ff0bf;
+}
+
+.commission.bump {
+  animation: quest-bump 0.35s ease-out;
+}
+
+@keyframes quest-bump {
+  40% {
+    transform: scale(1.12);
+  }
+}
+
+.star-line.quest .ic {
+  color: #9ff0bf;
+}
