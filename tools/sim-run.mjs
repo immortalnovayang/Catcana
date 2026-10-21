@@ -25,7 +25,7 @@ function firstLayer(board, m, fx) {
 
 function count(q, quest, type, n) {
   if (!quest || quest.type !== type) return q;
-  return type === 'chain' ? Math.max(q, n) : q + n;
+  return type === 'chain' || type === 'bigstep' ? Math.max(q, n) : q + n;
 }
 
 function playLevel(run, pick) {
@@ -59,15 +59,17 @@ function playLevel(run, pick) {
       plan = planLayer(board, board.findMatches(), move);
     }
     let chain = 0;
+    let step = 0;
     while (plan) {
       chain++;
-      score += scoreLayer(plan.scoreGroups, { chain, step: i - 1 }, fx).total;
+      step += scoreLayer(plan.scoreGroups, { chain, step: i - 1 }, fx).total;
       if (quest?.type === 'collect') {
         const hit = new Set();
         for (const g of plan.viewGroups) for (const c of g.cells) if (c.tile?.type === quest.color) hit.add(`${c.x},${c.y}`);
         q += hit.size;
       }
       q = count(q, quest, 'create', plan.creations.length);
+      q = count(q, quest, 'special', plan.creations.filter((c) => c.kind === quest?.kind).length);
       q = count(q, quest, 'blast', plan.detonations.length);
       const r = applyLayer(board, plan, { eggExtra: fx.eggExtra, eggSleepChance: fx.eggSleepChance });
       q = count(q, quest, 'hatch', r.hatched.length);
@@ -76,7 +78,9 @@ function playLevel(run, pick) {
       const g = board.findMatches();
       plan = g.length ? planLayer(board, g) : null;
     }
+    score += step;
     q = count(q, quest, 'chain', chain);
+    q = count(q, quest, 'bigstep', step);
     steps--;
     if (level.boss === 'owl' && i % OWL_EVERY === 0 && steps > 0) board.placeSpecial('sleep', OWL_SLEEPS);
     if (!board.hasValidMove()) board.shuffle();
@@ -85,7 +89,7 @@ function playLevel(run, pick) {
   return { ...finishLevel(run, score, steps, fx, done), done, floor: NODE_BY_ID[run.node].floor, kind: level.kind };
 }
 
-const out = { dead: 0, won: 0, lightAtBoss: [], deathFloor: {}, kinds: {}, floors: {} };
+const out = { dead: 0, won: 0, lightAtBoss: [], deathFloor: {}, kinds: {}, floors: {}, quests: {} };
 for (let seed = 0; seed < games; seed++) {
   const run = createRun(seed);
   const pick = createRng(seed * 31 + 7);
@@ -106,6 +110,11 @@ for (let seed = 0; seed < games; seed++) {
       k.pass += r.passed;
       k.three += r.stars === 3;
       k.quest += r.done;
+      const qt = currentLevel(run).commission;
+      const qk = qt ? qt.type + (qt.kind ?? qt.color ?? '') : 'none';
+      const qs = (out.quests[qk] ??= { n: 0, done: 0 });
+      qs.n++;
+      qs.done += r.done;
       k.dmg += r.damage;
       const f = (out.floors[r.floor] ??= { n: 0, pass: 0 });
       f.n++;
@@ -130,3 +139,4 @@ console.log(`到 Boss 時的星光：25% ${lb[lb.length >> 2]}  中位數 ${lb[l
 for (const [kind, k] of Object.entries(out.kinds))
   console.log(`${kind.padEnd(5)} ${k.n} 場：過關 ${pct(k.pass, k.n)}  三星 ${pct(k.three, k.n)}  委託 ${pct(k.quest, k.n)}  平均扣星光 ${(k.dmg / k.n).toFixed(1)}`);
 console.log('各層過關率：', Object.entries(out.floors).map(([f, v]) => `${f}:${pct(v.pass, v.n)}`).join('  '));
+console.log('各委託完成率：', Object.entries(out.quests).map(([k, v]) => `${k}:${pct(v.done, v.n)}`).join('  '));

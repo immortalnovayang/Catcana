@@ -36,7 +36,7 @@ import { CRYSTAL_INFO } from './gems.js';
 import { TAROT } from './tarot.js';
 import { buy, canBuy, createShopVisit, discardTarot, handFull, itemById, priceOf, reroll, rerollCost } from './shop.js';
 
-const VERSION = 'v0.14 · 新手引導';
+const VERSION = 'v0.15 · 新客人';
 const HINT_AFTER_MS = 6000;
 const KNIGHT_COST = 10;
 
@@ -256,7 +256,7 @@ function updateHud() {
 // ---------- 客人委託：分數之外的第二個目標 ----------
 
 function commissionIcon(c) {
-  const tile = c.type === 'collect' ? { type: c.color } : c.type === 'hatch' ? { type: 'egg' } : c.type === 'wake' ? { type: 'water', special: 'sleep' } : null;
+  const tile = { collect: { type: c.color }, hatch: { type: 'egg' }, wake: { type: 'water', special: 'sleep' }, special: KIND_INFO[c.kind]?.tile }[c.type];
   return tile ? `<img src="${tileImage(tile)}" alt="" />` : icon(COMMISSIONS[c.type].icon);
 }
 
@@ -265,17 +265,18 @@ function renderCommission() {
   const c = screen() === 'play' ? currentLevel(run).commission : null;
   el.hidden = !c;
   if (!c) return;
-  const shown = c.type === 'chain' ? `${Math.min(state.quest, c.need)} / ${c.need} 層` : `${Math.min(state.quest, c.need)} / ${c.need}`;
+  const unit = { chain: ' 層', bigstep: ' 分' }[c.type] ?? '';
+  const shown = `${Math.min(state.quest, c.need)} / ${c.need}${unit}`;
   el.classList.toggle('done', state.questDone);
   el.title = commissionText(c);
   el.innerHTML = `${commissionIcon(c)}<span class="q-label">委託</span><span class="q-count">${state.questDone ? '完成' : shown}</span>`;
 }
 
-// 累計委託進度；連鎖是「單次最高」，其他是加總
+// 累計委託進度；連鎖與單步高分是「單次最高」，其他是加總
 function addQuest(type, n) {
   const c = currentLevel(run).commission;
   if (!c || state.questDone || c.type !== type || n <= 0) return;
-  state.quest = type === 'chain' ? Math.max(state.quest, n) : state.quest + n;
+  state.quest = type === 'chain' || type === 'bigstep' ? Math.max(state.quest, n) : state.quest + n;
   if (state.quest >= c.need) {
     state.questDone = true;
     view.popup('委託完成！', 'big');
@@ -567,6 +568,7 @@ async function resolve(groups, { swapCells = [], first = null } = {}) {
       addQuest('collect', hit.size);
     }
     addQuest('create', plan.creations.length);
+    addQuest('special', plan.creations.filter((c) => c.kind === quest?.kind).length);
     addQuest('blast', plan.detonations.length);
     bump('stat-score');
     updateHud();
@@ -591,6 +593,7 @@ async function resolve(groups, { swapCells = [], first = null } = {}) {
   state.bestChain = Math.max(state.bestChain, chain);
   state.lastChain = chain;
   if (!noChain) addQuest('chain', chain);
+  addQuest('bigstep', stepTotal);
   run.bestChain = Math.max(run.bestChain, chain);
   run.bestStep = Math.max(run.bestStep, stepTotal);
   setStepInfo(chain > 1 && !noChain ? `這一步 +${stepTotal}（${chain} 層連鎖）` : `這一步 +${stepTotal}`);

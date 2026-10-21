@@ -3,6 +3,7 @@
 import { createRng } from './rng.js';
 import { CRYSTALS } from './board.js';
 import { CRYSTAL_INFO } from './gems.js';
+import { SPECIAL_NAMES } from './cascade.js';
 
 // 座標 0～1，y 越小越上面
 export const NODES = [
@@ -122,12 +123,17 @@ export const COMMISSIONS = {
   blast: { icon: 'sun', text: (c) => `引爆 ${c.need} 次特殊水晶` },
   hatch: { icon: 'egg', text: (c) => `孵化 ${c.need} 顆蛋` },
   wake: { icon: 'moon', text: (c) => `叫醒 ${c.need} 顆沉睡水晶` },
+  special: { icon: 'star', text: (c) => `做出 ${c.need} 顆${SPECIAL_NAMES[c.kind]}` },
+  bigstep: { icon: 'spark', text: (c) => `單一步拿到 ${c.need} 分以上` },
 };
 
 // 每位客人會提的委託（依個性）
 const COMMISSION_PREFS = {
   rabbit: [['collect', 'star'], ['collect', 'fire'], ['hatch']],
   hedgehog: [['create'], ['chain'], ['blast']],
+  squirrel: [['collect', 'earth'], ['collect', 'wind'], ['hatch']],
+  fox: [['special', 'meteor'], ['special', 'moon'], ['bigstep']],
+  frog: [['collect', 'water'], ['chain'], ['bigstep']],
   owl: [['wake']],
 };
 
@@ -135,16 +141,19 @@ const COMMISSION_PREFS = {
 export const COMMISSION_THANKS = {
   rabbit: '謝謝你！這樣我就有勇氣了！',
   hedgehog: '太好了，這下面試穩了！',
+  squirrel: '就是這個！奶奶的橡果找到了！',
+  fox: '哇！這招我明天也要表演！',
+  frog: '呱！雲散開了！',
   owl: '唔……看著水晶一顆顆醒來，我反而有點想睡了……',
 };
 
 // 數量：越上層越多，難纏客人再加一點
-function commissionNeed(type, floor, elite) {
+function commissionNeed(type, floor, elite, kind) {
   const hi = floor >= 4;
   const e = elite ? 1 : 0;
   switch (type) {
     case 'collect':
-      return 28 + floor * 2 + e * 6;
+      return 24 + floor * 2 + e * 5;
     case 'create':
       return 7 + (hi ? 2 : 0) + e;
     case 'blast':
@@ -153,6 +162,10 @@ function commissionNeed(type, floor, elite) {
       return Math.min(6, (hi ? 6 : 5) + e);
     case 'hatch':
       return 4 + e; // 開局會放同樣數量的蛋
+    case 'special':
+      return kind === 'moon' ? (hi ? 3 : 2) + e : (hi ? 6 : 5) + e;
+    case 'bigstep':
+      return 450 + floor * 60 + e * 100;
     default:
       return 6; // wake（Boss）
   }
@@ -160,16 +173,17 @@ function commissionNeed(type, floor, elite) {
 
 export function makeCommission(rng, customer, floor, elite = false) {
   const prefs = COMMISSION_PREFS[customer];
-  const [type, color] = prefs[rng.int(prefs.length)];
-  const c = { type, need: commissionNeed(type, floor, elite) };
-  if (color) c.color = color;
+  const [type, sub] = prefs[rng.int(prefs.length)];
+  const c = { type, need: commissionNeed(type, floor, elite, sub) };
+  if (type === 'special') c.kind = sub;
+  else if (sub) c.color = sub;
   return c;
 }
 
 export function commissionText(c) {
   return COMMISSIONS[c.type].text(c);
 }
-const REGULARS = ['rabbit', 'hedgehog'];
+const REGULARS = ['rabbit', 'hedgehog', 'squirrel', 'fox', 'frog'];
 
 // 產生一張星盤：每顆星的種類，關卡星還有客人、月相、難纏規則與目標分數
 export function generateStarmap(seed) {

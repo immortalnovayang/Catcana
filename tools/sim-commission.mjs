@@ -17,12 +17,12 @@ function firstLayer(board, m) {
   return s;
 }
 
-const stats = { star: [], create: [], blast: [], chain: [], hatch: [] };
+const stats = { star: [], water: [], create: [], meteor: [], moon: [], heart: [], blast: [], chain: [], hatch: [], bigstep: [] };
 for (let seed = 0; seed < games; seed++) {
   const board = new Board(createRng(seed));
   board.placeSpecial('egg', 4);
   if (!board.hasValidMove()) board.shuffle();
-  const t = { star: 0, create: 0, blast: 0, chain: 0, hatch: 0 };
+  const t = { star: 0, water: 0, create: 0, meteor: 0, moon: 0, heart: 0, blast: 0, chain: 0, hatch: 0, bigstep: 0 };
   for (let i = 0; i < 15; i++) {
     let best = null, bs = -1;
     for (const m of board.validMoves()) { const s = firstLayer(board, m); if (s > bs) [best, bs] = [m, s]; }
@@ -30,9 +30,12 @@ for (let seed = 0; seed < games; seed++) {
     if (heartMove(board, best)) plan = heartSwapPlan(board, ...best);
     else { board.swap(best[0], best[1]); plan = planLayer(board, board.findMatches(), best); }
     let chain = 0;
+    let step = 0;
     while (plan) {
       chain++;
-      for (const g of plan.viewGroups) for (const c of g.cells) if ((c.tile ?? board.get(c.x, c.y))?.type === 'star') t.star++;
+      for (const g of plan.viewGroups) for (const c of g.cells) { const ty = (c.tile ?? board.get(c.x, c.y))?.type; if (ty === 'star') t.star++; if (ty === 'water') t.water++; }
+      for (const c of plan.creations) t[c.kind]++;
+      step += scoreLayer(plan.scoreGroups, { chain, step: i }, fx).total;
       t.create += plan.creations.length;
       t.blast += plan.detonations.length;
       const r = applyLayer(board, plan);
@@ -42,6 +45,7 @@ for (let seed = 0; seed < games; seed++) {
       plan = g.length ? planLayer(board, g) : null;
     }
     t.chain = Math.max(t.chain, chain);
+    t.bigstep = Math.max(t.bigstep, step);
     if (!board.hasValidMove()) board.shuffle();
   }
   for (const k in t) stats[k].push(t[k]);
